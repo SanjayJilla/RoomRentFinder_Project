@@ -64,9 +64,21 @@ function Favorites() {
         <div className="room-grid">
           {favorites.map((room) => (
             <div className="room-card" key={room.room_id}>
-              <div className="room-image-placeholder">
-                No Photo Available
-              </div>
+              {room.images && room.images.length > 0 ? (
+                <img
+                  src={
+                    room.images[0].startsWith("http")
+                      ? room.images[0]
+                      : `${import.meta.env.VITE_API_URL}${room.images[0]}`
+                  }
+                  alt={room.title}
+                  className="room-card-image"
+                />
+              ) : (
+                <div className="room-image-placeholder">
+                  No Photo Available
+                </div>
+              )}
 
               <div className="room-card-details">
                 <h3>{room.title}</h3>

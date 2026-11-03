@@ -182,6 +182,13 @@ function OwnerProfile() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
 
+        <Link
+          to="/owner/change-password"
+          className="change-password-link"
+        >
+          Change Password
+        </Link>
+
         <p>
           <Link to="/owner/dashboard">
             ← Back to Owner Dashboard

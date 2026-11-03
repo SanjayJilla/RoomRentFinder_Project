@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { validatePassword } from "../utils/validation";
 
 function StudentChangePassword() {
   const navigate = useNavigate();
@@ -29,8 +30,9 @@ function StudentChangePassword() {
     setError("");
     setSuccess("");
 
-    if (form.new_password.length < 8) {
-      setError("New password must contain at least 8 characters.");
+    const passwordError = validatePassword(form.new_password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { getFavorites, addFavorite, removeFavorite } from "../services/favoritesApi";
 
 function RoomDetails() {
   const { roomId } = useParams();
@@ -16,6 +17,10 @@ function RoomDetails() {
   const [sending, setSending] = useState(false);
   const [enquirySuccess, setEnquirySuccess] = useState("");
   const [enquiryError, setEnquiryError] = useState("");
+
+  const [isSaved, setIsSaved] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteFeedback, setFavoriteFeedback] = useState("");
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -38,6 +43,59 @@ function RoomDetails() {
 
     fetchRoom();
   }, [roomId]);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("student_access_token");
+    if (!token) return;
+
+    let active = true;
+    getFavorites()
+      .then((data) => {
+        if (active && Array.isArray(data)) {
+          const found = data.some(
+            (item) => Number(item.room_id) === Number(roomId)
+          );
+          setIsSaved(found);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [roomId]);
+
+  const handleToggleFavorite = async () => {
+    const token = sessionStorage.getItem("student_access_token");
+
+    if (!token) {
+      navigate("/student/login");
+      return;
+    }
+
+    if (favoriteLoading) return;
+
+    setFavoriteLoading(true);
+    setFavoriteFeedback("");
+
+    try {
+      if (isSaved) {
+        await removeFavorite(Number(roomId));
+        setIsSaved(false);
+        setFavoriteFeedback("Removed from your saved rooms");
+      } else {
+        await addFavorite(Number(roomId));
+        setIsSaved(true);
+        setFavoriteFeedback("Saved to your rooms!");
+      }
+    } catch (err) {
+      setFavoriteFeedback(
+        err.response?.data?.detail || "Unable to update saved rooms."
+      );
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   if (loading) return <p>Loading property details...</p>;
 
@@ -107,16 +165,38 @@ function RoomDetails() {
           <p className="details-location">📍 {room.location}</p>
         </div>
 
-        <span
-          className={`details-status ${
-            room.available_rooms > 0 ? "available" : "occupied"
-          }`}
-        >
-          {room.available_rooms > 0
-            ? `${room.available_rooms} Rooms Available`
-            : "Fully Occupied"}
-        </span>
+        <div className="details-header-actions">
+          <button
+            type="button"
+            className={`details-favorite-btn ${isSaved ? "is-saved" : ""}`}
+            onClick={handleToggleFavorite}
+            disabled={favoriteLoading}
+            aria-label={isSaved ? "Remove from saved rooms" : "Save to favorites"}
+          >
+            {favoriteLoading
+              ? "⏳ Updating..."
+              : isSaved
+              ? "♥ Saved to Favorites"
+              : "♡ Save to Favorites"}
+          </button>
+
+          <span
+            className={`details-status ${
+              room.available_rooms > 0 ? "available" : "occupied"
+            }`}
+          >
+            {room.available_rooms > 0
+              ? `${room.available_rooms} Rooms Available`
+              : "Fully Occupied"}
+          </span>
+        </div>
       </div>
+
+      {favoriteFeedback && (
+        <p className="details-favorite-feedback" role="status">
+          {favoriteFeedback}
+        </p>
+      )}
 
       {/* Property photos */}
       {room.images?.length > 0 ? (

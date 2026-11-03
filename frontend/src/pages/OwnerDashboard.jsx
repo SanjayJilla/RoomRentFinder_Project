@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import {Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function OwnerDashboard() {
   const [rooms, setRooms] = useState([]);
@@ -8,13 +8,6 @@ function OwnerDashboard() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-  sessionStorage.removeItem("access_token");
-
-  window.dispatchEvent(new Event("auth-changed"));
-
-  navigate("/", { replace: true });
-};
   useEffect(() => {
     const token = sessionStorage.getItem("access_token");
 
@@ -96,13 +89,23 @@ const occupiedProperties = rooms.filter(
           </p>
         </div>
 
-        <button
-          type="button"
-          className="owner-add-btn"
-          onClick={() => navigate("/owner/add-room")}
-        >
-          + Add Property
-        </button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="owner-add-btn"
+            onClick={() => navigate("/owner/add-room")}
+          >
+            + Add Property
+          </button>
+          <button
+            type="button"
+            className="owner-add-btn"
+            style={{ backgroundColor: "var(--accent, #4f46e5)" }}
+            onClick={() => navigate("/owner/enquiries")}
+          >
+            📩 View Enquiries
+          </button>
+        </div>
       </div>
 
       {/* Dashboard statistics */}

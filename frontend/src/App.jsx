@@ -19,6 +19,7 @@ import StudentProfile from "./pages/StudentProfile";
 import {useEffect, useState} from "react";
 import {useLocation,useNavigate} from "react-router-dom";
 import OwnerProfile from "./pages/OwnerProfile";
+import OwnerChangePassword from "./pages/OwnerChangePassword";
 
 
 function ProtectedRoute({ children }) {
@@ -113,6 +114,10 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
           Dashboard
         </Link>
 
+        <Link to="/owner/enquiries" onClick={closeMenus}>
+          Enquiries
+        </Link>
+
         <div
           className={`nav-dropdown ${
             dropdownOpen ? "nav-dropdown-open" : ""
@@ -130,6 +135,10 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
           <div className="nav-dropdown-menu">
             <Link to="/owner/profile" onClick={closeMenus}>
               My Profile
+            </Link>
+
+            <Link to="/owner/change-password" onClick={closeMenus}>
+              Change Password
             </Link>
 
             <button
@@ -286,7 +295,14 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
             </ProtectedRoute>
         }
         />
-        <Route path="/favorites" element={<Favorites />} />
+        <Route
+          path="/favorites"
+          element={
+            <StudentProtectedRoute>
+              <Favorites />
+            </StudentProtectedRoute>
+          }
+        />
         <Route
         path="/owner/enquiries"
         element={
@@ -335,6 +351,14 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
           element={
             <ProtectedRoute>
               <OwnerProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/change-password"
+          element={
+            <ProtectedRoute>
+              <OwnerChangePassword />
             </ProtectedRoute>
           }
         />

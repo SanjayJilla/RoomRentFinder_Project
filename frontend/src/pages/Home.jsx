@@ -63,7 +63,6 @@ function Home() {
   useEffect(() => {
     const token = sessionStorage.getItem("student_access_token");
     if (!token) {
-      setFavoriteIds([]);
       return;
     }
     let active = true;

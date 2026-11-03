@@ -1,19 +1,24 @@
-from fastapi import FastAPI,Depends,HTTPException,status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from pwdlib import PasswordHash
-from pydantic import BaseModel,Field,ConfigDict,EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from sqlalchemy.orm import Session
-from database import Base, engine,get_db
-from models import Room,Owner,RoomImage, Enquiry,Student,Favorite
+from database import Base, engine, get_db
+from models import Room, Owner, RoomImage, Enquiry, Student, Favorite
 from sqlalchemy import func
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Security
 from jwt.exceptions import InvalidTokenError
-from fastapi import UploadFile,File
+from fastapi import UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import Literal
-from uuid import uuid4
-from jose import JWTError, jwt
+import re
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 import cloudinary
 import cloudinary.uploader
@@ -23,10 +28,9 @@ import os
 import jwt
 from datetime import datetime,timedelta,timezone
 from dotenv import load_dotenv
-from pwdlib import PasswordHash
 
-
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -43,10 +47,22 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Rental Room Finder")
-UPLOAD_DIR=Path("uploads")
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please slow down and try again later."}
+    )
+
+app.add_middleware(SlowAPIMiddleware)
+
+UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
-app.mount("/uploads",StaticFiles(directory=str(UPLOAD_DIR)),name="uploads")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -172,7 +188,7 @@ def get_current_student(
 
         student_id = int(student_id)
 
-    except (JWTError, ValueError, TypeError):
+    except (InvalidTokenError, KeyError, ValueError, TypeError):
         raise credentials_exception
 
     student = db.query(Student).filter(
@@ -355,18 +371,43 @@ def update_availability(
     return room
 password_hasher = PasswordHash.recommended()
 
+def validate_password_strength(password: str) -> str:
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long")
+    if len(password) > 64:
+        raise ValueError("Password cannot exceed 64 characters")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter (A-Z)")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("Password must contain at least one lowercase letter (a-z)")
+    if not re.search(r"\d", password):
+        raise ValueError("Password must contain at least one number (0-9)")
+    if not re.search(r"[@$!%*?&_\-#^~+=<>,.:;]", password):
+        raise ValueError("Password must contain at least one special character (@$!%*?&_-#^~+=<>,.:;)")
+    return password
+
 
 class OwnerRegister(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: EmailStr
     phone: str = Field(pattern=r"^[0-9]{10}$")
-    password: str = Field(min_length=8)
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 class StudentRegister(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: EmailStr
     phone: str = Field(pattern=r"^[0-9]{10}$")
-    password: str = Field(min_length=8, max_length=128)
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 class StudentLogin(BaseModel):
     email: EmailStr
@@ -386,7 +427,9 @@ class OwnerResponse(BaseModel):
     response_model=OwnerResponse,
     status_code=status.HTTP_201_CREATED
 )
+@limiter.limit("3/minute")
 def register_owner(
+    request: Request,
     owner: OwnerRegister,
     db: Session = Depends(get_db)
 ):
@@ -421,7 +464,9 @@ def register_owner(
     return new_owner
 
 @app.post("/students/register", status_code=201)
+@limiter.limit("3/minute")
 def register_student(
+    request: Request,
     data: StudentRegister,
     db: Session = Depends(get_db)
 ):
@@ -486,7 +531,9 @@ def create_access_token(owner_id: int, role: str = "owner"):
     return token
 
 @app.post("/owners/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 def login_owner(
+    request: Request,
     credentials: OwnerLogin,
     db: Session = Depends(get_db)
 ):
@@ -511,7 +558,9 @@ def login_owner(
     }
 
 @app.post("/students/login")
+@limiter.limit("5/minute")
 def login_student(
+    request: Request,
     data: StudentLogin,
     db: Session = Depends(get_db)
 ):
@@ -541,17 +590,31 @@ def login_student(
 
 class StudentProfileUpdate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    phone: str = Field(pattern=r"^[0-9]{10}$")
+    phone: str = Field(pattern=r"^[0-9]{10,15}$")
 
 class OwnerProfileUpdate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    phone: str = Field(pattern=r"^[0-9]{10}$")
+    phone: str = Field(pattern=r"^[0-9]{10,15}$")
 
 
 
 class StudentChangePassword(BaseModel):
     current_password: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+class OwnerChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 @app.get("/students/me/enquiries")
@@ -627,6 +690,48 @@ def update_owner_profile(
         }
     }
 
+@app.patch("/owners/me/password")
+@limiter.limit("5/minute")
+def change_owner_password(
+    request: Request,
+    data: OwnerChangePassword,
+    db: Session = Depends(get_db),
+    current_owner: Owner = Depends(get_current_owner)
+):
+    # Verify current password
+    if not password_hasher.verify(
+        data.current_password,
+        current_owner.password_hash
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+
+    # Validate new password
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must contain at least 8 characters"
+        )
+
+    if data.current_password == data.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from current password"
+        )
+
+    # Hash new password before saving
+    current_owner.password_hash = password_hasher.hash(
+        data.new_password
+    )
+
+    db.commit()
+
+    return {
+        "message": "Password changed successfully"
+    }
+
 
 @app.get("/owners/me/rooms")
 def get_my_rooms(
@@ -665,14 +770,53 @@ def get_student_profile(
         "phone": current_student.phone
     }
 
+@app.patch("/students/me")
+def update_student_profile(
+    data: StudentProfileUpdate,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student)
+):
+    name = data.name.strip()
+    phone = data.phone.strip()
+
+    if len(name) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Name must contain at least 2 characters"
+        )
+
+    if not phone.isdigit() or not 10 <= len(phone) <= 15:
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid phone number"
+        )
+
+    current_student.name = name
+    current_student.phone = phone
+
+    db.commit()
+    db.refresh(current_student)
+
+    return {
+        "message": "Student profile updated successfully",
+        "student": {
+            "id": current_student.id,
+            "name": current_student.name,
+            "email": current_student.email,
+            "phone": current_student.phone
+        }
+    }
+
 @app.patch("/students/me/password")
+@limiter.limit("5/minute")
 def change_student_password(
+    request: Request,
     data: StudentChangePassword,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student)
 ):
     # Verify current password
-    if not verify_password(
+    if not password_hasher.verify(
         data.current_password,
         current_student.password_hash
     ):
@@ -695,7 +839,7 @@ def change_student_password(
         )
 
     # Hash new password before saving
-    current_student.password_hash = get_password_hash(
+    current_student.password_hash = password_hasher.hash(
         data.new_password
     )
 
@@ -1260,7 +1404,14 @@ def get_student_favorites(
             "rent": room.rent,
             "available_rooms": room.available_rooms,
             "property_type": room.property_type,
-            "room_type": room.room_type
+            "room_type": room.room_type,
+            "images": [
+                image.image_url
+                for image in db.query(RoomImage)
+                .filter(RoomImage.room_id == room.id)
+                .order_by(RoomImage.id)
+                .all()
+            ]
         }
         for favorite, room in results
     ]

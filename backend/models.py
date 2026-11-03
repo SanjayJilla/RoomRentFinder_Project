@@ -43,6 +43,7 @@ class Owner(Base):
     email=Column(String(150),unique=True,nullable=False,index=True)
     phone=Column(String(15),nullable=False)
     password_hash=Column(String(255),nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
     
 
 class RoomImage(Base):
@@ -84,6 +85,7 @@ class Student(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     phone = Column(String(15), nullable=False)
     password_hash = Column(String(255), nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
 
 class Favorite(Base):
     __tablename__ = "favorites"

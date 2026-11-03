@@ -100,16 +100,6 @@ function StudentDashboard() {
       (enquiry.status || "Pending").toLowerCase() === "pending"
   ).length;
 
-  // Logout
-  
-  const handleLogout = () => {
-  sessionStorage.removeItem("student_access_token");
-  sessionStorage.removeItem("student_name");
-
-  window.dispatchEvent(new Event("auth-changed"));
-
-  navigate("/", { replace: true });
-};
   // Enquiry status
   const getEnquiryStatus = (status) => {
   const value = (status || "Pending").toLowerCase();

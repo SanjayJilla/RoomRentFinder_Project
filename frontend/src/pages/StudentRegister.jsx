@@ -2,6 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import { validatePassword } from "../utils/validation";
 
 function StudentRegister() {
   const navigate = useNavigate();
@@ -32,6 +33,13 @@ function StudentRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    const passwordError = validatePassword(form.password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -48,6 +56,8 @@ function StudentRegister() {
       setError(
         typeof detail === "string"
           ? detail
+          : Array.isArray(detail) && detail[0]?.msg
+          ? detail[0].msg
           : "Registration failed. Please try again."
       );
     } finally {
