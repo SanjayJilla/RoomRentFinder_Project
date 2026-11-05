@@ -2,7 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, Building2, Eye, EyeOff } from "lucide-react";
+import { User, Building2, Eye, EyeOff } from "lucide-react";
 import { validatePassword, suggestEmailCorrection } from "../utils/validation";
 
 function StudentRegister() {
@@ -78,7 +78,7 @@ function StudentRegister() {
               className="auth-role-tab active"
               aria-current="page"
             >
-              <GraduationCap size={15} /> Student
+              <User size={15} /> User
             </button>
             <Link to="/register" className="auth-role-tab">
               <Building2 size={15} /> Property Owner
@@ -100,15 +100,15 @@ function StudentRegister() {
             margin: "0 auto 14px",
           }}
         >
-          <GraduationCap size={24} />
+          <User size={24} />
         </div>
 
         <div className="student-login-heading">
-          <span>STUDENT PORTAL</span>
+          <span>USER REGISTRATION</span>
           <h1>Create your account</h1>
           <p>
-            Join RoomRentFinder to discover rooms, save your
-            favorites, and contact property owners.
+            Join RoomRentFinder to discover verified rooms, save your
+            favorites, and contact property owners (Students, Parents, Working Professionals).
           </p>
         </div>
 

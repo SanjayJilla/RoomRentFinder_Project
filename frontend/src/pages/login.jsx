@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, GraduationCap, Eye, EyeOff } from "lucide-react";
+import { Building2, User, Eye, EyeOff } from "lucide-react";
 
 function Login() {
   const navigate = useNavigate();
@@ -74,7 +74,7 @@ function Login() {
         <div style={{ textAlign: "center" }}>
           <div className="auth-role-switcher">
             <Link to="/student/login" className="auth-role-tab">
-              <GraduationCap size={15} /> Student
+              <User size={15} /> User
             </Link>
             <button
               type="button"

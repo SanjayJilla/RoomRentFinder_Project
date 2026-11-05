@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Save,
   Loader2,
-  GraduationCap,
 } from "lucide-react";
 import "../App.css";
 
@@ -117,9 +116,9 @@ function StudentProfile() {
           </div>
           <div className="profile-hero-info">
             <div className="profile-role-badge">
-              <GraduationCap size={12} /> Student
+              <User size={12} /> User
             </div>
-            <h2 className="profile-hero-name">{form.name || "Student"}</h2>
+            <h2 className="profile-hero-name">{form.name || "User"}</h2>
             <p className="profile-hero-email">{form.email}</p>
           </div>
         </div>

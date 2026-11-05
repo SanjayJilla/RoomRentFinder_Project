@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { X, GraduationCap, Building2, Shield, Info } from "lucide-react";
+import { X, User, Building2, Shield, Info } from "lucide-react";
 
 /**
  * LoginPromptModal – handles both guest login prompts and role-switching notices.
@@ -17,7 +17,7 @@ function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
     navigate(path);
   };
 
-  // If this is a role-conflict notice (e.g. an Owner trying a student-only feature)
+  // If this is a role-conflict notice (e.g. an Owner trying a renter/user-only feature)
   if (roleNotice) {
     return (
       <div
@@ -42,11 +42,11 @@ function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
           </div>
 
           <h2 id="lpm-title" className="lpm-title">
-            {roleNotice.title || "Student Account Required"}
+            {roleNotice.title || "User Account Required"}
           </h2>
           <p className="lpm-desc">
             {roleNotice.message ||
-              "You are currently logged in as a Property Owner. This feature is designed for student renters."}
+              "You are currently logged in as a Property Owner. This feature is designed for users and renters (students, parents, working professionals)."}
           </p>
 
           <div className="lpm-actions">
@@ -58,8 +58,8 @@ function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
                 goLogin("/student/login");
               }}
             >
-              <GraduationCap size={17} />
-              Switch to Student Account
+              <User size={17} />
+              Switch to User Account
             </button>
             <button
               type="button"
@@ -108,8 +108,8 @@ function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
             className="lpm-btn lpm-btn-student"
             onClick={() => goLogin("/student/login")}
           >
-            <GraduationCap size={17} />
-            Student Login
+            <User size={17} />
+            User Login
           </button>
           <button
             type="button"
@@ -128,7 +128,7 @@ function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
             className="lpm-link"
             onClick={() => goLogin("/student/register")}
           >
-            Register as Student
+            Register as User
           </button>{" "}
           or{" "}
           <button

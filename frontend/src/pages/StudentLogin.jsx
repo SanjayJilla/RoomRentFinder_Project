@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, Building2, Eye, EyeOff } from "lucide-react";
+import { User, Building2, Eye, EyeOff } from "lucide-react";
 
 function StudentLogin() {
   const navigate = useNavigate();
@@ -83,7 +83,7 @@ function StudentLogin() {
               className="auth-role-tab active"
               aria-current="page"
             >
-              <GraduationCap size={15} /> Student
+              <User size={15} /> User
             </button>
             <Link to="/login" className="auth-role-tab">
               <Building2 size={15} /> Property Owner
@@ -105,14 +105,14 @@ function StudentLogin() {
             margin: "0 auto 14px",
           }}
         >
-          <GraduationCap size={24} />
+          <User size={24} />
         </div>
 
         <div className="student-login-heading">
-          <span>STUDENT PORTAL</span>
+          <span>USER PORTAL</span>
           <h1>Welcome back</h1>
           <p>
-            Sign in to manage your saved rooms and enquiries.
+            Sign in to manage your saved rooms and enquiries (Students, Parents, Working Professionals).
           </p>
         </div>
 

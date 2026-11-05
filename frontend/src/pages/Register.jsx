@@ -2,7 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, GraduationCap, Eye, EyeOff } from "lucide-react";
+import { Building2, User, Eye, EyeOff } from "lucide-react";
 import { validatePassword, suggestEmailCorrection } from "../utils/validation";
 
 function Register() {
@@ -74,7 +74,7 @@ function Register() {
         <div style={{ textAlign: "center" }}>
           <div className="auth-role-switcher">
             <Link to="/student/register" className="auth-role-tab">
-              <GraduationCap size={15} /> Student
+              <User size={15} /> User
             </Link>
             <button
               type="button"
@@ -110,7 +110,7 @@ function Register() {
 
           <p>
             Join RoomRentFinder to list your properties,
-            manage availability, and connect with students.
+            manage availability, and connect with tenants.
           </p>
         </div>
 

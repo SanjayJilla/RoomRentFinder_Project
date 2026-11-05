@@ -161,8 +161,8 @@ function Home() {
         targetPath: "/student/login",
         roleNotice: {
           title: "Property Owner Mode",
-          message: "You are currently signed in as a Property Owner. Saving favorite properties is a feature designed for student renters.",
-          targetRole: "Student",
+          message: "You are currently signed in as a Property Owner. Saving favorite properties is a feature designed for user and renter accounts.",
+          targetRole: "User",
         },
       });
       return;
@@ -242,9 +242,9 @@ function Home() {
       {/* UI CHANGE: a distinct hero section gives the home page a clear first impression. */}
       <section className="rental-hero">
         <div className="rental-hero-inner">
-          <span className="rental-eyebrow">ROOMRENTFINDER · STUDENT LIVING</span>
+          <span className="rental-eyebrow">ROOMRENTFINDER · RENTALS FOR ALL</span>
           <h1>Find a room that <span>feels like home.</span></h1>
-          <p>Discover verified PGs, apartments and independent rooms that fit your budget and student lifestyle.</p>
+          <p>Discover verified PGs, apartments and independent rooms that fit your budget and lifestyle.</p>
           <a className="rental-hero-link" href="#room-listings">
             Explore available rooms <ArrowRight size={15} />
           </a>
@@ -462,8 +462,8 @@ function Home() {
                       <button
                         className={`rental-heart-btn ${isSaved ? "is-saved" : ""}`}
                         type="button"
-                        aria-label={sessionStorage.getItem("access_token") ? "Favorites are for students" : isSaved ? `Remove ${cleanTitle} from saved rooms` : `Save ${cleanTitle}`}
-                        title={sessionStorage.getItem("access_token") ? "You are signed in as a Property Owner. Favorites is a student feature." : undefined}
+                        aria-label={sessionStorage.getItem("access_token") ? "Favorites are for user accounts" : isSaved ? `Remove ${cleanTitle} from saved rooms` : `Save ${cleanTitle}`}
+                        title={sessionStorage.getItem("access_token") ? "You are signed in as a Property Owner. Favorites is a user feature." : undefined}
                         aria-pressed={isSaved}
                         disabled={favoriteLoadingId !== null}
                         onClick={() => handleFavorite(room.id)}

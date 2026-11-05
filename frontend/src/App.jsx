@@ -269,14 +269,14 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
               letterSpacing: "0.5px",
             }}
           >
-            Students
+            Users &amp; Renters
           </div>
           <Link to="/student/login" onClick={closeMenus}>
-            Student Login
+            User Login
           </Link>
 
           <Link to="/student/register" onClick={closeMenus}>
-            Student Register
+            User Register
           </Link>
 
           <div
@@ -381,8 +381,11 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
         }
         />
         <Route
-
         path="/student/register"
+        element={<StudentRegister />}
+        />
+        <Route
+        path="/user/register"
         element={<StudentRegister />}
         />
 
@@ -390,9 +393,21 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
         path="/student/login"
         element={<StudentLogin />}
         />
+        <Route
+        path="/user/login"
+        element={<StudentLogin />}
+        />
 
         <Route
         path="/student/dashboard"
+        element={
+            <StudentProtectedRoute>
+            <StudentDashboard />
+            </StudentProtectedRoute>
+        }
+        />
+        <Route
+        path="/user/dashboard"
         element={
             <StudentProtectedRoute>
             <StudentDashboard />
@@ -408,7 +423,23 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
         }
         />
         <Route
+        path="/user/profile"
+        element={
+            <StudentProtectedRoute>
+            <StudentProfile />
+            </StudentProtectedRoute>
+        }
+        />
+        <Route
         path="/student/change-password"
+        element={
+            <StudentProtectedRoute>
+            <StudentChangePassword />
+            </StudentProtectedRoute>
+        }
+        />
+        <Route
+        path="/user/change-password"
         element={
             <StudentProtectedRoute>
             <StudentChangePassword />

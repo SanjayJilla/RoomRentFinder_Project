@@ -143,7 +143,7 @@ function StudentDashboard() {
         {/* Welcome section */}
         <div className="student-dashboard-header">
           <div>
-            <span className="student-dashboard-kicker">STUDENT WORKSPACE</span>
+            <span className="student-dashboard-kicker">USER WORKSPACE</span>
             <h1>Welcome, {studentName}!</h1>
             <p>
               Manage your room search, saved properties, and enquiries in one place.

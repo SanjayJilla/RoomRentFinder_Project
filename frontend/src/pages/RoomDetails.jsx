@@ -109,7 +109,7 @@ function RoomDetails() {
 
     // Owner check: do NOT redirect to student login!
     if (sessionStorage.getItem("access_token")) {
-      setFavoriteFeedback("You are signed in as a Property Owner. Saving favorites is available for Student accounts.");
+      setFavoriteFeedback("You are signed in as a Property Owner. Saving favorites is available for User accounts.");
       return;
     }
 
@@ -676,7 +676,7 @@ function RoomDetails() {
                   Property Owner Account
                 </p>
                 <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.5" }}>
-                  You are signed in as a Property Owner. Rental enquiries can only be submitted from Student accounts looking to rent.
+                  You are signed in as a Property Owner. Rental enquiries can only be submitted from User accounts looking to rent.
                 </p>
                 <Link
                   to="/owner/dashboard"
