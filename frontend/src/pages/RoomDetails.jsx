@@ -18,6 +18,7 @@ import {
   X,
   Sparkles,
   Lock,
+  Building2,
 } from "lucide-react";
 import { isDemoRoom, getCleanTitle } from "../utils/demoHelper";
 
@@ -106,12 +107,15 @@ function RoomDetails() {
       return;
     }
 
-    const token = sessionStorage.getItem("student_access_token");
-
-    if (!token) {
-      navigate("/student/login");
+    // Owner check: do NOT redirect to student login!
+    if (sessionStorage.getItem("access_token")) {
+      setFavoriteFeedback("You are signed in as a Property Owner. Saving favorites is available for Student accounts.");
       return;
     }
+
+    const token = sessionStorage.getItem("student_access_token");
+
+    if (!token) return;
 
     if (favoriteLoading) return;
 
@@ -274,25 +278,36 @@ function RoomDetails() {
         </div>
 
         <div className="details-header-actions">
-          <button
-            type="button"
-            className={`details-favorite-btn ${isSaved ? "is-saved" : ""}`}
-            onClick={handleToggleFavorite}
-            disabled={favoriteLoading}
-            aria-label={isSaved ? "Remove from saved rooms" : "Save to favorites"}
-          >
-            <Heart
-              size={15}
-              fill={isSaved ? "#e11d48" : "none"}
-              color={isSaved ? "#e11d48" : "#475569"}
-              strokeWidth={isSaved ? 0 : 2}
-            />
-            {favoriteLoading
-              ? "Updating..."
-              : isSaved
-              ? "Saved to Favorites"
-              : "Save to Favorites"}
-          </button>
+          {sessionStorage.getItem("access_token") ? (
+            <Link
+              to="/owner/dashboard"
+              className="details-favorite-btn"
+              style={{ textDecoration: "none", color: "#2563eb", background: "#eff6ff", borderColor: "#bfdbfe", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              title="You are signed in as a Property Owner"
+            >
+              <Building2 size={15} /> Owner Portal
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className={`details-favorite-btn ${isSaved ? "is-saved" : ""}`}
+              onClick={handleToggleFavorite}
+              disabled={favoriteLoading}
+              aria-label={isSaved ? "Remove from saved rooms" : "Save to favorites"}
+            >
+              <Heart
+                size={15}
+                fill={isSaved ? "#e11d48" : "none"}
+                color={isSaved ? "#e11d48" : "#475569"}
+                strokeWidth={isSaved ? 0 : 2}
+              />
+              {favoriteLoading
+                ? "Updating..."
+                : isSaved
+                ? "Saved to Favorites"
+                : "Save to Favorites"}
+            </button>
+          )}
 
           <span
             className={`details-status ${
@@ -653,6 +668,23 @@ function RoomDetails() {
                 >
                   <Lock size={15} style={{ marginRight: "6px" }} /> Login to Send Enquiry
                 </button>
+              </div>
+            ) : sessionStorage.getItem("access_token") ? (
+              <div style={{ marginTop: "14px", padding: "16px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                <Building2 size={24} style={{ color: "#2563eb", margin: "0 auto 8px", display: "block" }} />
+                <p style={{ fontSize: "13.5px", fontWeight: 700, color: "#0f172a", margin: "0 0 6px" }}>
+                  Property Owner Account
+                </p>
+                <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.5" }}>
+                  You are signed in as a Property Owner. Rental enquiries can only be submitted from Student accounts looking to rent.
+                </p>
+                <Link
+                  to="/owner/dashboard"
+                  className="details-enquiry-btn"
+                  style={{ display: "inline-block", marginTop: "12px", textDecoration: "none", textAlign: "center" }}
+                >
+                  Go to Owner Dashboard
+                </Link>
               </div>
             ) : (
               <form

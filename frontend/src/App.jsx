@@ -36,16 +36,27 @@ import VerifyEmail from "./pages/VerifyEmail";
 
 
 function ProtectedRoute({ children }) {
-  const token = sessionStorage.getItem("access_token");
+  const isOwner = !!sessionStorage.getItem("access_token");
+  const isStudent = !!sessionStorage.getItem("student_access_token");
 
-  return token ? children : <Navigate to="/login" replace />;
+  // If already logged in as Student, redirect to Student Dashboard rather than asking to log in again
+  if (isStudent) {
+    return <Navigate to="/student/dashboard" replace />;
+  }
+
+  return isOwner ? children : <Navigate to="/login" replace />;
 }
-function StudentProtectedRoute({ children }) {
-  const token = sessionStorage.getItem("student_access_token");
 
-  return token
-    ? children
-    : <Navigate to="/student/login" replace />;
+function StudentProtectedRoute({ children }) {
+  const isStudent = !!sessionStorage.getItem("student_access_token");
+  const isOwner = !!sessionStorage.getItem("access_token");
+
+  // If already logged in as Owner, redirect to Owner Dashboard rather than asking to log in again
+  if (isOwner) {
+    return <Navigate to="/owner/dashboard" replace />;
+  }
+
+  return isStudent ? children : <Navigate to="/student/login" replace />;
 }
 function App() {
   const navigate = useNavigate();

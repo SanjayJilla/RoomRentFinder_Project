@@ -1,11 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, GraduationCap, Eye, EyeOff } from "lucide-react";
 
 function Login() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem("access_token")) {
+      navigate("/owner/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

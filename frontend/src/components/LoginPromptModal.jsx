@@ -1,22 +1,80 @@
 import { useNavigate } from "react-router-dom";
-import { X, LogIn, GraduationCap, Building2, Shield } from "lucide-react";
+import { X, GraduationCap, Building2, Shield, Info } from "lucide-react";
 
 /**
- * LoginPromptModal – shown when a guest tries to access a protected action.
+ * LoginPromptModal – handles both guest login prompts and role-switching notices.
  * Props:
- *   onClose()  – called when user dismisses without logging in
- *   targetPath – optional path to redirect to after login (future use)
+ *   onClose()    – called when user dismisses without logging in
+ *   targetPath   – optional path to redirect to after login
+ *   roleNotice   – optional { title, message, targetRole } for role conflicts
  */
-function LoginPromptModal({ onClose, targetPath }) {
+function LoginPromptModal({ onClose, targetPath, roleNotice = null }) {
   const navigate = useNavigate();
 
   const goLogin = (path) => {
     onClose();
-    // Stash where the user was trying to go so post-login we can redirect back
     if (targetPath) sessionStorage.setItem("login_redirect", targetPath);
     navigate(path);
   };
 
+  // If this is a role-conflict notice (e.g. an Owner trying a student-only feature)
+  if (roleNotice) {
+    return (
+      <div
+        className="lpm-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lpm-title"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="lpm-card">
+          <button
+            type="button"
+            className="lpm-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+
+          <div className="lpm-icon-wrap" style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
+            <Info size={32} strokeWidth={1.8} style={{ color: "#d97706" }} />
+          </div>
+
+          <h2 id="lpm-title" className="lpm-title">
+            {roleNotice.title || "Student Account Required"}
+          </h2>
+          <p className="lpm-desc">
+            {roleNotice.message ||
+              "You are currently logged in as a Property Owner. This feature is designed for student renters."}
+          </p>
+
+          <div className="lpm-actions">
+            <button
+              type="button"
+              className="lpm-btn lpm-btn-student"
+              onClick={() => {
+                sessionStorage.removeItem("access_token");
+                goLogin("/student/login");
+              }}
+            >
+              <GraduationCap size={17} />
+              Switch to Student Account
+            </button>
+            <button
+              type="button"
+              className="lpm-btn lpm-btn-owner"
+              onClick={onClose}
+            >
+              Continue as Owner
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard guest login prompt
   return (
     <div
       className="lpm-overlay"
@@ -26,7 +84,6 @@ function LoginPromptModal({ onClose, targetPath }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="lpm-card">
-        {/* Close button */}
         <button
           type="button"
           className="lpm-close"
@@ -36,7 +93,6 @@ function LoginPromptModal({ onClose, targetPath }) {
           <X size={18} />
         </button>
 
-        {/* Icon + heading */}
         <div className="lpm-icon-wrap">
           <Shield size={32} strokeWidth={1.5} className="lpm-shield" />
         </div>
@@ -46,7 +102,6 @@ function LoginPromptModal({ onClose, targetPath }) {
           send enquiries.
         </p>
 
-        {/* CTA buttons */}
         <div className="lpm-actions">
           <button
             type="button"
@@ -90,4 +145,3 @@ function LoginPromptModal({ onClose, targetPath }) {
 }
 
 export default LoginPromptModal;
-

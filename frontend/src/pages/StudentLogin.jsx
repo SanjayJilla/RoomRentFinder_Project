@@ -1,11 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { GraduationCap, Building2, Eye, EyeOff } from "lucide-react";
 
 function StudentLogin() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem("student_access_token")) {
+      navigate("/student/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const [form, setForm] = useState({
     email: "",

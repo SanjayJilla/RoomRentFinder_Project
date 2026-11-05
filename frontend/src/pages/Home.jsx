@@ -44,7 +44,7 @@ function Home() {
   // Login gate modal state — also auto-opens if ?login=1 in URL (e.g. from RoomDetails redirect)
   const [loginPrompt, setLoginPrompt] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return { open: params.get("login") === "1", targetPath: params.get("next") || null };
+    return { open: params.get("login") === "1", targetPath: params.get("next") || null, roleNotice: null };
   });
 
   // Near me geolocation state
@@ -151,11 +151,29 @@ function Home() {
 
   // BUG FIX: this handler must be inside Home(), not inside useEffect().
   const handleFavorite = async (roomId) => {
-    if (!sessionStorage.getItem("student_access_token")) {
-      // Show login modal instead of hard-navigating away
-      setLoginPrompt({ open: true, targetPath: "/student/login" });
+    const isOwner = !!sessionStorage.getItem("access_token");
+    const isStudent = !!sessionStorage.getItem("student_access_token");
+
+    // 1. If currently signed in as Owner, show role notice instead of generic login prompt
+    if (isOwner) {
+      setLoginPrompt({
+        open: true,
+        targetPath: "/student/login",
+        roleNotice: {
+          title: "Property Owner Mode",
+          message: "You are currently signed in as a Property Owner. Saving favorite properties is a feature designed for student renters.",
+          targetRole: "Student",
+        },
+      });
       return;
     }
+
+    // 2. If guest (not signed in at all), show standard login modal
+    if (!isStudent) {
+      setLoginPrompt({ open: true, targetPath: "/student/login", roleNotice: null });
+      return;
+    }
+
     if (favoriteLoadingId !== null) return;
     const isSaved = favoriteIds.includes(roomId);
     setFavoriteError("");
@@ -216,8 +234,9 @@ function Home() {
       {/* Login gate modal */}
       {loginPrompt.open && (
         <LoginPromptModal
-          onClose={() => setLoginPrompt({ open: false, targetPath: null })}
+          onClose={() => setLoginPrompt({ open: false, targetPath: null, roleNotice: null })}
           targetPath={loginPrompt.targetPath}
+          roleNotice={loginPrompt.roleNotice}
         />
       )}
       {/* UI CHANGE: a distinct hero section gives the home page a clear first impression. */}
@@ -443,7 +462,8 @@ function Home() {
                       <button
                         className={`rental-heart-btn ${isSaved ? "is-saved" : ""}`}
                         type="button"
-                        aria-label={isSaved ? `Remove ${cleanTitle} from saved rooms` : `Save ${cleanTitle}`}
+                        aria-label={sessionStorage.getItem("access_token") ? "Favorites are for students" : isSaved ? `Remove ${cleanTitle} from saved rooms` : `Save ${cleanTitle}`}
+                        title={sessionStorage.getItem("access_token") ? "You are signed in as a Property Owner. Favorites is a student feature." : undefined}
                         aria-pressed={isSaved}
                         disabled={favoriteLoadingId !== null}
                         onClick={() => handleFavorite(room.id)}
