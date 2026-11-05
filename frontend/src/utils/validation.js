@@ -31,3 +31,39 @@ export const validatePassword = (password) => {
   return null;
 };
 
+const COMMON_DOMAIN_TYPOS = {
+  "gmai.com": "gmail.com",
+  "gmaill.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gmaik.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gmai.in": "gmail.com",
+  "yaho.com": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yhaoo.com": "yahoo.com",
+  "hotmial.com": "hotmail.com",
+  "hotmaill.com": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outloo.com": "outlook.com",
+  "iclud.com": "icloud.com",
+};
+
+/**
+ * Detects common typos in email domains and suggests a fix.
+ * @param {string} email
+ * @returns {string|null} Corrected email or null if no typo detected
+ */
+export const suggestEmailCorrection = (email) => {
+  if (!email || typeof email !== "string" || !email.includes("@")) return null;
+  const parts = email.trim().split("@");
+  if (parts.length !== 2) return null;
+  const [user, domain] = parts;
+  const correctedDomain = COMMON_DOMAIN_TYPOS[domain.toLowerCase()];
+  if (correctedDomain) {
+    return `${user}@${correctedDomain}`;
+  }
+  return null;
+};
+
+

@@ -1,4 +1,14 @@
 import { Routes, Route, Link, Navigate } from "react-router-dom";
+import {
+  Building2,
+  Menu,
+  X,
+  ChevronDown,
+  User,
+  Heart,
+  LogOut,
+  GraduationCap,
+} from "lucide-react";
 import Home from "./pages/Home";
 import Login from "./pages/login";
 import "./App.css";
@@ -20,6 +30,9 @@ import {useEffect, useState} from "react";
 import {useLocation,useNavigate} from "react-router-dom";
 import OwnerProfile from "./pages/OwnerProfile";
 import OwnerChangePassword from "./pages/OwnerChangePassword";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 
 
 function ProtectedRoute({ children }) {
@@ -82,7 +95,8 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
     <>
  <nav className="navbar">
   <Link to="/" className="nav-logo" onClick={closeMenus}>
-    🏠 RoomRentFinder
+    <Building2 size={20} className="nav-logo-icon" />
+    <span>RoomRentFinder</span>
   </Link>
 
   {/* Mobile hamburger button */}
@@ -97,7 +111,7 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
       setDropdownOpen(false);
     }}
   >
-    {menuOpen ? "✕" : "☰"}
+    {menuOpen ? <X size={20} /> : <Menu size={20} />}
   </button>
 
   <div
@@ -128,8 +142,11 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
             className="nav-account"
             aria-expanded={dropdownOpen}
             onClick={() => setDropdownOpen((prev) => !prev)}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            👤 Account ▾
+            <User size={15} />
+            <span>Account</span>
+            <ChevronDown size={14} />
           </button>
 
           <div className="nav-dropdown-menu">
@@ -148,16 +165,22 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
                 closeMenus();
                 handleLogout();
               }}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
             >
-              Logout
+              <LogOut size={14} /> Logout
             </button>
           </div>
         </div>
       </>
     ) : auth.student ? (
       <>
-        <Link to="/favorites" onClick={closeMenus}>
-          ♥ Saved Rooms
+        <Link
+          to="/favorites"
+          onClick={closeMenus}
+          style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+        >
+          <Heart size={14} style={{ color: "#e11d48" }} />
+          <span>Saved Rooms</span>
         </Link>
 
         <Link to="/student/dashboard" onClick={closeMenus}>
@@ -174,8 +197,11 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
             className="nav-account"
             aria-expanded={dropdownOpen}
             onClick={() => setDropdownOpen((prev) => !prev)}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            👤 Account ▾
+            <User size={15} />
+            <span>Account</span>
+            <ChevronDown size={14} />
           </button>
 
           <div className="nav-dropdown-menu">
@@ -197,8 +223,9 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
                 closeMenus();
                 handleLogout();
               }}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
             >
-              Logout
+              <LogOut size={14} /> Logout
             </button>
           </div>
         </div>
@@ -214,11 +241,25 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
           className="nav-login"
           aria-expanded={dropdownOpen}
           onClick={() => setDropdownOpen((prev) => !prev)}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          Login / Register ▾
+          <span>Login / Register</span>
+          <ChevronDown size={14} />
         </button>
 
         <div className="nav-dropdown-menu">
+          <div
+            style={{
+              padding: "6px 12px",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#94a3b8",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
+            Students
+          </div>
           <Link to="/student/login" onClick={closeMenus}>
             Student Login
           </Link>
@@ -227,6 +268,20 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
             Student Register
           </Link>
 
+          <div
+            style={{
+              borderTop: "1px solid #f1f5f9",
+              margin: "4px 0",
+              padding: "6px 12px 2px",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#94a3b8",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
+            Property Owners
+          </div>
           <Link to="/login" onClick={closeMenus}>
             Owner Login
           </Link>
@@ -244,6 +299,9 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route
           path="/owner/dashboard"
           element={

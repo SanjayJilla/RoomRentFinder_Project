@@ -1,11 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Header
 from fastapi.responses import JSONResponse
 from pwdlib import PasswordHash
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from database import Base, engine, get_db
 from models import Room, Owner, RoomImage, Enquiry, Student, Favorite
-from sqlalchemy import func
+from sqlalchemy import func, text
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Security
 from jwt.exceptions import InvalidTokenError
@@ -14,6 +14,23 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import Literal
 import re
+import math
+
+def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculates the great-circle distance between two GPS coordinates in kilometers.
+    """
+    R = 6371.0  # Earth's radius in kilometers
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -26,8 +43,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 import os
 import jwt
-from datetime import datetime,timedelta,timezone
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+
+from email_service import (
+    send_password_reset_email,
+    send_verification_email,
+    send_enquiry_received_email,
+    send_enquiry_status_updated_email
+)
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -64,23 +88,42 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://room-rent-finder-one.vercel.app",
+]
+frontend_env = os.getenv("FRONTEND_URL")
+if frontend_env and frontend_env.rstrip("/") not in allowed_origins:
+    allowed_origins.append(frontend_env.rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173",
-                   "http://localhost:4173",
-                   "https://room-rent-finder-one.vercel.app"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 Base.metadata.create_all(bind=engine)
+
+# Auto-migration for room coordinates
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;"))
+        conn.execute(text("ALTER TABLE rooms ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;"))
+except Exception as e:
+    print(f"[DB MIGRATION NOTICE] Coordinates column check: {e}")
+
 class RoomCreate(BaseModel):
-    title:str
-    location:str
-    rent:int=Field(gt=0)
-    deposit:int=Field(ge=0)
-    total_rooms:int=Field(gt=0)
-    available_rooms:int=Field(ge=0)
+    title: str
+    location: str
+    latitude: float | None = None
+    longitude: float | None = None
+    rent: int = Field(gt=0)
+    deposit: int = Field(ge=0)
+    total_rooms: int = Field(gt=0)
+    available_rooms: int = Field(ge=0)
     owner_id: int | None = None
     property_type: str = "PG"
     room_type: str = "Single"
@@ -100,6 +143,8 @@ class RoomResponse(RoomCreate):
 class RoomUpdate(BaseModel):
     title: str | None = None
     location: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     rent: int | None = Field(default=None, gt=0)
     deposit: int | None = Field(default=None, ge=0)
     total_rooms: int | None = Field(default=None, gt=0)
@@ -229,6 +274,9 @@ def add_room(
 @app.get("/rooms")
 def get_rooms(
     location: str | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_km: float = 5.0,
     max_rent: int | None = None,
     available_only: bool = False,
     property_type: str | None = None,
@@ -238,11 +286,13 @@ def get_rooms(
     furnished: bool | None = None,
     attached_bathroom: bool | None = None,
     food_included: bool | None = None,
+    page: int | None = None,
+    limit: int | None = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(Room)
 
-    if location:
+    if location and (lat is None or lng is None):
         query = query.filter(
             Room.location.ilike(f"%{location}%")
         )
@@ -282,46 +332,71 @@ def get_rooms(
     if food_included is not None:
         query = query.filter(Room.food_included == food_included)
 
+    rooms = query.options(selectinload(Room.images)).all()
 
-    rooms = query.all()
+    results = []
+    for room in rooms:
+        dist = None
+        # Calculate distance if user provided GPS coordinates
+        if lat is not None and lng is not None:
+            room_lat = getattr(room, "latitude", None)
+            room_lng = getattr(room, "longitude", None)
+            if room_lat is not None and room_lng is not None:
+                dist = haversine_distance_km(lat, lng, room_lat, room_lng)
+                if dist > radius_km:
+                    continue  # Exclude rooms outside the radius
+            elif location:
+                # Fallback: room has no GPS; check if text matches
+                if location.lower() not in (room.location or "").lower():
+                    continue
 
-    return [
-    {
-        **{
-            column.name: getattr(room, column.name)
-            for column in Room.__table__.columns
-        },
-        "images": [
-            image.image_url
-            for image in db.query(RoomImage)
-            .filter(RoomImage.room_id == room.id)
-            .order_by(RoomImage.id)
-            .all()
-        ]
-    }
-    for room in rooms
-]
+        room_dict = {
+            **{
+                column.name: getattr(room, column.name)
+                for column in Room.__table__.columns
+            },
+            "images": [image.image_url for image in room.images],
+            "distance_km": dist
+        }
+        results.append(room_dict)
+
+    # If coordinates were provided, sort by distance (closest first)
+    if lat is not None and lng is not None:
+        results.sort(key=lambda r: (r["distance_km"] is None, r["distance_km"] or 999999))
+
+    # Apply pagination after spatial filtering
+    if page is not None and limit is not None:
+        page_num = max(1, page)
+        page_size = min(max(1, limit), 100)
+        start = (page_num - 1) * page_size
+        return results[start:start + page_size]
+    elif limit is not None:
+        return results[:min(max(1, limit), 100)]
+
+    return results
 
 
 @app.get("/rooms/{room_id}")
 def get_room_details(room_id: int, db: Session = Depends(get_db)):
 
-    room = db.query(Room).filter(Room.id == room_id).first()
+    room = (
+        db.query(Room)
+        .options(selectinload(Room.images))
+        .filter(Room.id == room_id)
+        .first()
+    )
 
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    owner = db.query(Owner).filter(Owner.id == room.owner_id).first()
-    images = (
-    db.query(RoomImage)
-    .filter(RoomImage.room_id == room.id)
-    .order_by(RoomImage.id)
-    .all()
-    )
+    owner = db.query(Owner).filter(Owner.id == room.owner_id).first() if room.owner_id else None
+
     return {
         "id": room.id,
         "title": room.title,
         "location": room.location,
+        "latitude": getattr(room, "latitude", None),
+        "longitude": getattr(room, "longitude", None),
         "rent": room.rent,
         "deposit": room.deposit,
         "property_type": room.property_type,
@@ -338,8 +413,7 @@ def get_room_details(room_id: int, db: Session = Depends(get_db)):
         # Owner details
         "owner_name": owner.name if owner else None,
         "owner_phone": owner.phone if owner else None,
-        "images": [image.image_url for image in images],
-
+        "images": [image.image_url for image in room.images],
     }
 
 @app.patch("/rooms/{room_id}/availability")
@@ -461,6 +535,17 @@ def register_owner(
         db.rollback()
         raise
 
+    try:
+        verify_token = create_action_token(
+            user_id=new_owner.id,
+            role="owner",
+            purpose="email_verification",
+            expires_minutes=1440
+        )
+        send_verification_email(new_owner.email, new_owner.name, verify_token)
+    except Exception:
+        pass
+
     return new_owner
 
 @app.post("/students/register", status_code=201)
@@ -494,6 +579,17 @@ def register_student(
     db.add(student)
     db.commit()
     db.refresh(student)
+
+    try:
+        verify_token = create_action_token(
+            user_id=student.id,
+            role="student",
+            purpose="email_verification",
+            expires_minutes=1440
+        )
+        send_verification_email(student.email, student.name, verify_token)
+    except Exception:
+        pass
 
     return {
         "message": "Student registered successfully",
@@ -529,6 +625,29 @@ def create_access_token(owner_id: int, role: str = "owner"):
     )
 
     return token
+
+
+def create_action_token(user_id: int, role: str, purpose: str, expires_minutes: int = 15) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "purpose": purpose,
+        "exp": expire
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_action_token(token: str, expected_purpose: str) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("purpose") != expected_purpose:
+            raise HTTPException(status_code=400, detail="Invalid token purpose")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token has expired. Please request a new link.")
+    except InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid token.")
 
 @app.post("/owners/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
@@ -587,6 +706,105 @@ def login_student(
         "student_id": student.id,
         "student_name": student.name
     }
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    role: Literal["owner", "student"]
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+@app.post("/auth/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    email = str(data.email).lower().strip()
+    user = None
+    if data.role == "owner":
+        user = db.query(Owner).filter(func.lower(Owner.email) == email).first()
+    else:
+        user = db.query(Student).filter(func.lower(Student.email) == email).first()
+
+    if user:
+        reset_token = create_action_token(
+            user_id=user.id,
+            role=data.role,
+            purpose="password_reset",
+            expires_minutes=15
+        )
+        send_password_reset_email(to_email=user.email, name=user.name, reset_token=reset_token)
+
+    return {
+        "message": "If an account with this email exists, a password reset link has been sent."
+    }
+
+
+@app.post("/auth/reset-password")
+@limiter.limit("5/minute")
+def reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    payload = decode_action_token(data.token, expected_purpose="password_reset")
+    user_id = int(payload.get("sub", 0))
+    role = payload.get("role")
+
+    user = db.get(Owner if role == "owner" else Student, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    if password_hasher.verify(data.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from current password"
+        )
+
+    user.password_hash = password_hasher.hash(data.new_password)
+    db.commit()
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}
+
+
+@app.post("/auth/verify-email")
+@limiter.limit("5/minute")
+def verify_email(
+    request: Request,
+    data: VerifyEmailRequest,
+    db: Session = Depends(get_db)
+):
+    payload = decode_action_token(data.token, expected_purpose="email_verification")
+    user_id = int(payload.get("sub", 0))
+    role = payload.get("role")
+
+    user = db.get(Owner if role == "owner" else Student, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    if getattr(user, "email_verified", False):
+        return {"message": "Email is already verified."}
+
+    if hasattr(user, "email_verified"):
+        user.email_verified = True
+        db.commit()
+
+    return {"message": "Email verified successfully! Your account is now confirmed."}
 
 class StudentProfileUpdate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
@@ -738,26 +956,24 @@ def get_my_rooms(
     db: Session = Depends(get_db),
     current_owner: Owner = Depends(get_current_owner)
 ):
-    rooms = db.query(Room).filter(
-        Room.owner_id == current_owner.id
-    ).order_by(Room.id.desc()).all()
+    rooms = (
+        db.query(Room)
+        .options(selectinload(Room.images))
+        .filter(Room.owner_id == current_owner.id)
+        .order_by(Room.id.desc())
+        .all()
+    )
 
     return [
-    {
-        **{
-            column.name: getattr(room, column.name)
-            for column in Room.__table__.columns
-        },
-        "images": [
-            image.image_url
-            for image in db.query(RoomImage)
-            .filter(RoomImage.room_id == room.id)
-            .order_by(RoomImage.id)
-            .all()
-        ]
-    }
-    for room in rooms
-]
+        {
+            **{
+                column.name: getattr(room, column.name)
+                for column in Room.__table__.columns
+            },
+            "images": [image.image_url for image in room.images]
+        }
+        for room in rooms
+    ]
 
 @app.get("/students/me")
 def get_student_profile(
@@ -997,6 +1213,38 @@ def delete_room(
     return {"message": "Room deleted successfully"}
 
 
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "admin_roomrentfinder_master_secret")
+
+@app.delete("/admin/rooms/{room_id}", status_code=status.HTTP_200_OK)
+def admin_delete_room(
+    room_id: int,
+    admin_key: str = Header(..., alias="X-Admin-Key"),
+    db: Session = Depends(get_db)
+):
+    """Allows webmaster / administrator to delete any room directly using the admin secret key."""
+    if admin_key != ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid admin secret key"
+        )
+
+    room = db.get(Room, room_id)
+    if not room:
+        raise HTTPException(
+            status_code=404,
+            detail="Room not found"
+        )
+
+    # Delete related dependencies (images, favorites, enquiries)
+    db.query(RoomImage).filter(RoomImage.room_id == room_id).delete()
+    db.query(Favorite).filter(Favorite.room_id == room_id).delete()
+    db.query(Enquiry).filter(Enquiry.room_id == room_id).delete()
+    db.delete(room)
+    db.commit()
+
+    return {"message": f"Room #{room_id} deleted successfully by admin"}
+
+
 @app.post("/rooms/{room_id}/images")
 async def upload_room_image(
     room_id: int,
@@ -1078,8 +1326,8 @@ async def upload_room_image(
         )
 
     new_image = RoomImage(
-            room_id=room_id,
-            image_url=image_url
+        room_id=room_id,
+        image_url=image_url
     )
 
     try:
@@ -1257,6 +1505,21 @@ def create_enquiry(
     db.commit()
     db.refresh(enquiry)
 
+    try:
+        if room.owner_id:
+            owner = db.get(Owner, room.owner_id)
+            if owner and owner.email:
+                send_enquiry_received_email(
+                    owner_email=owner.email,
+                    owner_name=owner.name,
+                    room_title=room.title,
+                    student_name=current_student.name,
+                    student_phone=current_student.phone,
+                    message=enquiry.message
+                )
+    except Exception:
+        pass
+
     return {
         "message": "Enquiry submitted successfully",
         "enquiry_id": enquiry.id
@@ -1329,6 +1592,19 @@ def update_enquiry_status(
     db.commit()
     db.refresh(enquiry)
 
+    try:
+        if enquiry.student_id:
+            student = db.get(Student, enquiry.student_id)
+            if student and student.email:
+                send_enquiry_status_updated_email(
+                    student_email=student.email,
+                    student_name=student.name,
+                    room_title=room.title,
+                    status=data.status
+                )
+    except Exception:
+        pass
+
     return {
         "message": "Enquiry status updated successfully",
         "enquiry_id": enquiry.id,
@@ -1390,6 +1666,7 @@ def get_student_favorites(
     results = (
         db.query(Favorite, Room)
         .join(Room, Favorite.room_id == Room.id)
+        .options(selectinload(Favorite.room).selectinload(Room.images))
         .filter(Favorite.student_id == current_student.id)
         .order_by(Favorite.id.desc())
         .all()
@@ -1405,13 +1682,7 @@ def get_student_favorites(
             "available_rooms": room.available_rooms,
             "property_type": room.property_type,
             "room_type": room.room_type,
-            "images": [
-                image.image_url
-                for image in db.query(RoomImage)
-                .filter(RoomImage.room_id == room.id)
-                .order_by(RoomImage.id)
-                .all()
-            ]
+            "images": [image.image_url for image in (room.images or [])]
         }
         for favorite, room in results
     ]

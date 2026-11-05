@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {
+  Building2,
+  CheckCircle2,
+  Clock,
+  Plus,
+  Inbox,
+  Edit,
+  Trash2,
+  Camera,
+  MapPin,
+  Image as ImageIcon,
+  Sparkles,
+} from "lucide-react";
+import { isDemoRoom, getCleanTitle } from "../utils/demoHelper";
 
 function OwnerDashboard() {
   const [rooms, setRooms] = useState([]);
@@ -95,7 +109,7 @@ const occupiedProperties = rooms.filter(
             className="owner-add-btn"
             onClick={() => navigate("/owner/add-room")}
           >
-            + Add Property
+            <Plus size={15} /> Add Property
           </button>
           <button
             type="button"
@@ -103,7 +117,7 @@ const occupiedProperties = rooms.filter(
             style={{ backgroundColor: "var(--accent, #4f46e5)" }}
             onClick={() => navigate("/owner/enquiries")}
           >
-            📩 View Enquiries
+            <Inbox size={15} /> View Enquiries
           </button>
         </div>
       </div>
@@ -113,21 +127,27 @@ const occupiedProperties = rooms.filter(
         <div className="owner-stats-grid">
 
           <div className="owner-stat-card">
-            <div className="owner-stat-icon">🏠</div>
+            <div className="owner-stat-icon">
+              <Building2 size={20} />
+            </div>
             <span>Total Properties</span>
             <strong>{totalProperties}</strong>
             <p>Your rental listings</p>
           </div>
 
           <div className="owner-stat-card">
-            <div className="owner-stat-icon">✓</div>
+            <div className="owner-stat-icon">
+              <CheckCircle2 size={20} />
+            </div>
             <span>Available Properties</span>
             <strong>{availableProperties}</strong>
             <p>Properties with vacant rooms</p>
           </div>
 
           <div className="owner-stat-card">
-            <div className="owner-stat-icon">⌛</div>
+            <div className="owner-stat-icon">
+              <Clock size={20} />
+            </div>
             <span>Fully Occupied</span>
             <strong>{occupiedProperties}</strong>
             <p>Properties with no vacant rooms</p>
@@ -160,7 +180,22 @@ const occupiedProperties = rooms.filter(
         </div>
       ) : rooms.length === 0 ? (
         <div className="owner-empty-state">
-          <div className="owner-empty-icon">🏠</div>
+          <div
+            className="owner-empty-icon"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "56px",
+              height: "56px",
+              borderRadius: "14px",
+              backgroundColor: "#eff6ff",
+              color: "#2563eb",
+              margin: "0 auto 15px",
+            }}
+          >
+            <Building2 size={28} />
+          </div>
 
           <h3>No properties added yet</h3>
 
@@ -195,7 +230,7 @@ const occupiedProperties = rooms.filter(
                 />
               ) : (
                 <div className="owner-property-placeholder">
-                  <span>🏠</span>
+                  <ImageIcon size={28} strokeWidth={1.5} color="#94a3b8" />
                   <p>No Photo Available</p>
                 </div>
               )}
@@ -204,7 +239,14 @@ const occupiedProperties = rooms.filter(
               <div className="owner-property-content">
 
                 <div className="owner-property-heading">
-                  <h3>{room.title}</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <h3>{getCleanTitle(room.title)}</h3>
+                    {isDemoRoom(room) && (
+                      <span className="details-demo-pill" style={{ fontSize: "10px", padding: "2px 8px" }}>
+                        <Sparkles size={10} /> Demo
+                      </span>
+                    )}
+                  </div>
 
                   <span
                     className={
@@ -220,7 +262,7 @@ const occupiedProperties = rooms.filter(
                 </div>
 
                 <p className="owner-property-location">
-                  📍 {room.location}
+                  <MapPin size={13} className="owner-pin-icon" /> {room.location}
                 </p>
 
                 <div className="owner-property-price">
@@ -244,7 +286,7 @@ const occupiedProperties = rooms.filter(
                       navigate(`/owner/edit-room/${room.id}`)
                     }
                   >
-                    Edit
+                    <Edit size={13} /> Edit
                   </button>
 
                   <button
@@ -253,7 +295,7 @@ const occupiedProperties = rooms.filter(
                       navigate(`/owner/rooms/${room.id}/photos`)
                     }
                   >
-                    Manage Photos
+                    <Camera size={13} /> Photos
                   </button>
 
                   <button
@@ -261,7 +303,7 @@ const occupiedProperties = rooms.filter(
                     className="delete-btn"
                     onClick={() => handleDelete(room.id)}
                   >
-                    Delete
+                    <Trash2 size={13} /> Delete
                   </button>
 
                 </div>

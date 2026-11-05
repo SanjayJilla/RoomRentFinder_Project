@@ -1,7 +1,22 @@
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { searchAddress } from "../services/geocoding";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  MapPin,
+  Check,
+  X,
+  ArrowLeft,
+  Loader2,
+  Building2,
+  FileText,
+  AlertCircle,
+  Armchair,
+  Wifi,
+  Bath,
+  Utensils,
+} from "lucide-react";
 
 function AddRoom() {
   const navigate = useNavigate();
@@ -24,7 +39,66 @@ function AddRoom() {
     food_included: false,
     gender_preference: "Any",
     description: "",
+    latitude: null,
+    longitude: null,
   });
+
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
+  const suggestionsRef = useRef(null);
+
+  useEffect(() => {
+    if (!form.location || form.location.trim().length < 3 || hasSelectedLocation) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setIsSearchingLocation(true);
+      const results = await searchAddress(form.location, controller.signal);
+      setLocationSuggestions(results);
+      setIsSearchingLocation(false);
+    }, 450);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [form.location, hasSelectedLocation]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setLocationSuggestions([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectSuggestion = (suggestion) => {
+    setForm((previous) => ({
+      ...previous,
+      location: suggestion.displayName,
+      latitude: suggestion.lat,
+      longitude: suggestion.lon,
+    }));
+    setHasSelectedLocation(true);
+    setLocationSuggestions([]);
+  };
+
+  const handleLocationInputChange = (e) => {
+    const value = e.target.value;
+    setForm((previous) => ({
+      ...previous,
+      location: value,
+      latitude: null,
+      longitude: null,
+    }));
+    setHasSelectedLocation(false);
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -85,10 +159,13 @@ function AddRoom() {
         return;
       }
 
+      const finalTitle = form.title.trim();
+
       await axios.post(
         `${import.meta.env.VITE_API_URL}/rooms`,
         {
           ...form,
+          title: finalTitle,
           rent,
           deposit,
           total_rooms: totalRooms,
@@ -120,25 +197,25 @@ function AddRoom() {
       name: "furnished",
       label: "Furnished",
       description: "Furniture is provided",
-      icon: "🛋️",
+      icon: <Armchair size={18} />,
     },
     {
       name: "wifi",
       label: "Wi-Fi",
       description: "Internet access available",
-      icon: "📶",
+      icon: <Wifi size={18} />,
     },
     {
       name: "attached_bathroom",
       label: "Attached Bathroom",
       description: "Private attached bathroom",
-      icon: "🚿",
+      icon: <Bath size={18} />,
     },
     {
       name: "food_included",
       label: "Food Included",
       description: "Meals are included in rent",
-      icon: "🍽️",
+      icon: <Utensils size={18} />,
     },
   ];
 
@@ -174,7 +251,7 @@ function AddRoom() {
           <section className="add-property-section">
             <div className="add-property-section-heading">
               <span className="add-property-section-icon">
-                🏠
+                <Building2 size={20} />
               </span>
 
               <div>
@@ -198,22 +275,64 @@ function AddRoom() {
                   required
                   maxLength={150}
                 />
+
               </div>
 
-              <div className="add-property-field full-width">
+              <div className="add-property-field full-width location-field-wrapper" ref={suggestionsRef}>
                 <label htmlFor="property-location">
                   Location <span>*</span>
                 </label>
 
-                <input
-                  id="property-location"
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
-                  placeholder="Area, city or nearby landmark"
-                  required
-                  maxLength={200}
-                />
+                <div className="location-input-container">
+                  <input
+                    id="property-location"
+                    name="location"
+                    value={form.location}
+                    onChange={handleLocationInputChange}
+                    placeholder="Type area, city, or landmark (e.g. Madhapur, Hyderabad)"
+                    required
+                    maxLength={200}
+                    autoComplete="off"
+                  />
+                  {isSearchingLocation && (
+                    <span className="location-search-spinner" title="Searching places...">
+                      <Loader2 size={14} className="spin-icon" />
+                    </span>
+                  )}
+                </div>
+
+                {form.latitude && form.longitude && (
+                  <div className="location-coords-badge">
+                    <Check size={13} className="coords-check-icon" />
+                    <span>Coordinates verified ({form.latitude.toFixed(4)}, {form.longitude.toFixed(4)})</span>
+                    <button
+                      type="button"
+                      className="location-coords-clear"
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, latitude: null, longitude: null }));
+                        setHasSelectedLocation(false);
+                      }}
+                      title="Clear coordinates"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+
+                {locationSuggestions.length > 0 && (
+                  <ul className="location-suggestions-dropdown">
+                    {locationSuggestions.map((item, idx) => (
+                      <li
+                        key={idx}
+                        className="location-suggestion-item"
+                        onClick={() => handleSelectSuggestion(item)}
+                      >
+                        <MapPin size={13} className="location-pin-icon" />
+                        <span className="location-suggestion-name">{item.displayName}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="add-property-field">
@@ -376,7 +495,7 @@ function AddRoom() {
           <section className="add-property-section">
             <div className="add-property-section-heading">
               <span className="add-property-section-icon">
-                ✨
+                <Sparkles size={20} />
               </span>
 
               <div>
@@ -410,7 +529,7 @@ function AddRoom() {
                   </span>
 
                   <span className="add-property-check">
-                    ✓
+                    <Check size={14} />
                   </span>
                 </label>
               ))}
@@ -421,7 +540,7 @@ function AddRoom() {
           <section className="add-property-section">
             <div className="add-property-section-heading">
               <span className="add-property-section-icon">
-                📝
+                <FileText size={20} />
               </span>
 
               <div>
@@ -454,7 +573,7 @@ function AddRoom() {
           {/* ERROR */}
           {error && (
             <div className="add-property-error" role="alert">
-              <span>⚠️</span>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
               <p>{error}</p>
             </div>
           )}

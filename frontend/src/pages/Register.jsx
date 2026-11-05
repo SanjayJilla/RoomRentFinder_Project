@@ -2,7 +2,8 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { validatePassword } from "../utils/validation";
+import { Building2, GraduationCap, Eye, EyeOff } from "lucide-react";
+import { validatePassword, suggestEmailCorrection } from "../utils/validation";
 
 function Register() {
   const navigate = useNavigate();
@@ -69,7 +70,38 @@ function Register() {
     <div className="owner-auth-container">
       <div className="owner-login-wrapper">
 
-        <div className="owner-login-icon">🏠</div>
+        {/* Role Toggle */}
+        <div style={{ textAlign: "center" }}>
+          <div className="auth-role-switcher">
+            <Link to="/student/register" className="auth-role-tab">
+              <GraduationCap size={15} /> Student
+            </Link>
+            <button
+              type="button"
+              className="auth-role-tab active"
+              aria-current="page"
+            >
+              <Building2 size={15} /> Property Owner
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="owner-login-icon"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "52px",
+            height: "52px",
+            borderRadius: "14px",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            margin: "0 auto 14px",
+          }}
+        >
+          <Building2 size={24} />
+        </div>
 
         <div className="owner-login-heading">
           <span>PROPERTY OWNER PORTAL</span>
@@ -121,6 +153,50 @@ function Register() {
               autoComplete="email"
               required
             />
+
+            {suggestEmailCorrection(form.email) && (
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "12px",
+                  color: "#1d4ed8",
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  padding: "6px 10px",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                }}
+              >
+                <span>
+                  Did you mean <strong>{suggestEmailCorrection(form.email)}</strong>?
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      email: suggestEmailCorrection(prev.email),
+                    }))
+                  }
+                  style={{
+                    background: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Apply Fix
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Phone */}
@@ -174,8 +250,10 @@ function Register() {
                   showPassword ? "Hide password" : "Show password"
                 }
                 aria-pressed={showPassword}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                <span>{showPassword ? "Hide" : "Show"}</span>
               </button>
             </div>
 

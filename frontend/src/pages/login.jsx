@@ -2,6 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import { Building2, GraduationCap, Eye, EyeOff } from "lucide-react";
 
 function Login() {
   const navigate = useNavigate();
@@ -39,7 +40,13 @@ function Login() {
       // Update navbar immediately
       window.dispatchEvent(new Event("auth-changed"));
 
-      navigate("/owner/dashboard");
+      const redirectPath = sessionStorage.getItem("login_redirect");
+      if (redirectPath) {
+        sessionStorage.removeItem("login_redirect");
+        navigate(redirectPath);
+      } else {
+        navigate("/owner/dashboard");
+      }
     } catch (err) {
       const detail = err.response?.data?.detail;
 
@@ -57,7 +64,38 @@ function Login() {
     <div className="owner-auth-container">
       <div className="owner-login-wrapper">
 
-        <div className="owner-login-icon">🏠</div>
+        {/* Role Toggle */}
+        <div style={{ textAlign: "center" }}>
+          <div className="auth-role-switcher">
+            <Link to="/student/login" className="auth-role-tab">
+              <GraduationCap size={15} /> Student
+            </Link>
+            <button
+              type="button"
+              className="auth-role-tab active"
+              aria-current="page"
+            >
+              <Building2 size={15} /> Property Owner
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="owner-login-icon"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "52px",
+            height: "52px",
+            borderRadius: "14px",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            margin: "0 auto 14px",
+          }}
+        >
+          <Building2 size={24} />
+        </div>
 
         <div className="owner-login-heading">
           <span>PROPERTY OWNER PORTAL</span>
@@ -118,10 +156,21 @@ function Login() {
                   showPassword ? "Hide password" : "Show password"
                 }
                 aria-pressed={showPassword}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                <span>{showPassword ? "Hide" : "Show"}</span>
               </button>
             </div>
+          </div>
+
+          <div style={{ textAlign: "right", marginTop: "-6px", marginBottom: "14px" }}>
+            <Link
+              to="/forgot-password"
+              style={{ fontSize: "13px", color: "#2563eb", textDecoration: "none" }}
+            >
+              Forgot password?
+            </Link>
           </div>
 
           {/* Error */}
