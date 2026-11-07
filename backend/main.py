@@ -748,7 +748,11 @@ def forgot_password(
             purpose="password_reset",
             expires_minutes=15
         )
-        send_password_reset_email(to_email=user.email, name=user.name, reset_token=reset_token)
+        sent = send_password_reset_email(to_email=user.email, name=user.name, reset_token=reset_token)
+        if not sent:
+            print(f"[AUTH ERROR] Failed to deliver reset email to {user.email}")
+    else:
+        print(f"[AUTH INFO] Password reset requested for non-existent or wrong-role email: '{email}' (role: {data.role})")
 
     return {
         "message": "If an account with this email exists, a password reset link has been sent."

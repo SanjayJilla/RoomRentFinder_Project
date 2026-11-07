@@ -8,50 +8,75 @@ from dotenv import load_dotenv
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
-SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "").strip()
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME or "no-reply@roomrentfinder.com")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME or "no-reply@roomrentfinder.com").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
     """
     Sends an email using configured SMTP credentials.
-    If SMTP credentials are not configured, gracefully logs the email to the console.
+    Supports both STARTTLS (port 587) and SSL (port 465) with automatic fallback.
+    If SMTP credentials are not configured, logs the email and link to the server console.
     """
-    if not SMTP_SERVER or not SMTP_USERNAME or not SMTP_PASSWORD:
+    clean_password = SMTP_PASSWORD.replace(" ", "").strip()
+
+    if not SMTP_SERVER or not SMTP_USERNAME or not clean_password:
         print("\n" + "=" * 60)
-        print(" [EMAIL SERVICE (DEV MODE)] No SMTP credentials in .env")
+        print(" [EMAIL SERVICE (DEV MODE)] No SMTP credentials configured!")
         print(f" To: {to_email}")
         print(f" Subject: {subject}")
         print("-" * 60)
-        # Extract and print link if present
         for line in html_body.splitlines():
             if "href=" in line or "http" in line:
-                print(f" Preview link/info: {line.strip()}")
+                print(f" Link: {line.strip()}")
         print("=" * 60 + "\n")
         return True
 
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_FROM_EMAIL
+    msg["To"] = to_email
+    html_part = MIMEText(html_body, "html")
+    msg.attach(html_part)
+
+    # Attempt 1: Configured port (default 587 TLS or 465 SSL)
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = SMTP_FROM_EMAIL
-        msg["To"] = to_email
-
-        html_part = MIMEText(html_body, "html")
-        msg.attach(html_part)
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.send_message(msg)
-
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=12) as server:
+                server.login(SMTP_USERNAME, clean_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=12) as server:
+                server.starttls()
+                server.login(SMTP_USERNAME, clean_password)
+                server.send_message(msg)
+        print(f"[EMAIL SERVICE SUCCESS] Sent email to {to_email}")
         return True
-    except Exception as e:
-        print(f"[EMAIL SERVICE ERROR] Failed to send email to {to_email}: {e}")
-        return False
+    except Exception as first_err:
+        print(f"[EMAIL SERVICE WARNING] Primary send failed ({SMTP_SERVER}:{SMTP_PORT}): {first_err}")
+
+        # Attempt 2: Fallback (if 587 failed, try 465 SSL, or vice versa)
+        fallback_port = 465 if SMTP_PORT != 465 else 587
+        try:
+            print(f"[EMAIL SERVICE INFO] Trying fallback on port {fallback_port}...")
+            if fallback_port == 465:
+                with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=12) as server:
+                    server.login(SMTP_USERNAME, clean_password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(SMTP_SERVER, 587, timeout=12) as server:
+                    server.starttls()
+                    server.login(SMTP_USERNAME, clean_password)
+                    server.send_message(msg)
+            print(f"[EMAIL SERVICE SUCCESS] Sent email to {to_email} via fallback port {fallback_port}")
+            return True
+        except Exception as second_err:
+            print(f"[EMAIL SERVICE ERROR] All attempts failed to send to {to_email}: {second_err}")
+            return False
 
 
 def send_password_reset_email(to_email: str, name: str, reset_token: str) -> bool:

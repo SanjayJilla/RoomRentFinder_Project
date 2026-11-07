@@ -96,215 +96,238 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
     navigate("/", { replace: true });
   };
   const closeMenus = () => {
-  setMenuOpen(false);
-  setDropdownOpen(false);
-};
+    setMenuOpen(false);
+    setDropdownOpen(false);
+  };
 
+  // Lock background scrolling on mobile when right drawer is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
+  // Close menus on route navigation
+  useEffect(() => {
+    closeMenus();
+  }, [location.pathname]);
 
   return (
-    
     <>
- <nav className="navbar">
-  <Link to="/" className="nav-logo" onClick={closeMenus}>
-    <Building2 size={20} className="nav-logo-icon" />
-    <span>RoomRentFinder</span>
-  </Link>
-
-  {/* Mobile hamburger button */}
-  <button
-    type="button"
-    className="nav-hamburger"
-    aria-label="Toggle navigation"
-    aria-expanded={menuOpen}
-    aria-controls="main-navigation"
-    onClick={() => {
-      setMenuOpen((prev) => !prev);
-      setDropdownOpen(false);
-    }}
-  >
-    {menuOpen ? <X size={20} /> : <Menu size={20} />}
-  </button>
-
-  <div
-    id="main-navigation"
-    className={`nav-links ${menuOpen ? "nav-links-open" : ""}`}
-  >
-    <Link to="/" onClick={closeMenus}>
-      Home
-    </Link>
-
-    {auth.owner ? (
-      <>
-        <Link to="/owner/dashboard" onClick={closeMenus}>
-          Dashboard
+      <nav className="navbar">
+        <Link to="/" className="nav-logo" onClick={closeMenus}>
+          <Building2 size={20} className="nav-logo-icon" />
+          <span>RoomRentFinder</span>
         </Link>
 
-        <Link to="/owner/enquiries" onClick={closeMenus}>
-          Enquiries
-        </Link>
-
-        <div
-          className={`nav-dropdown ${
-            dropdownOpen ? "nav-dropdown-open" : ""
-          }`}
-        >
-          <button
-            type="button"
-            className="nav-account"
-            aria-expanded={dropdownOpen}
-            onClick={() => setDropdownOpen((prev) => !prev)}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-          >
-            <User size={15} />
-            <span>Account</span>
-            <ChevronDown size={14} />
-          </button>
-
-          <div className="nav-dropdown-menu">
-            <Link to="/owner/profile" onClick={closeMenus}>
-              My Profile
-            </Link>
-
-            <Link to="/owner/change-password" onClick={closeMenus}>
-              Change Password
-            </Link>
-
-            <button
-              type="button"
-              className="nav-menu-logout"
-              onClick={() => {
-                closeMenus();
-                handleLogout();
-              }}
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-            >
-              <LogOut size={14} /> Logout
-            </button>
-          </div>
-        </div>
-      </>
-    ) : auth.student ? (
-      <>
-        <Link
-          to="/favorites"
-          onClick={closeMenus}
-          style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
-        >
-          <Heart size={14} style={{ color: "#e11d48" }} />
-          <span>Saved Rooms</span>
-        </Link>
-
-        <Link to="/student/dashboard" onClick={closeMenus}>
-          Dashboard
-        </Link>
-
-        <div
-          className={`nav-dropdown ${
-            dropdownOpen ? "nav-dropdown-open" : ""
-          }`}
-        >
-          <button
-            type="button"
-            className="nav-account"
-            aria-expanded={dropdownOpen}
-            onClick={() => setDropdownOpen((prev) => !prev)}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-          >
-            <User size={15} />
-            <span>Account</span>
-            <ChevronDown size={14} />
-          </button>
-
-          <div className="nav-dropdown-menu">
-            <Link to="/student/profile" onClick={closeMenus}>
-              My Profile
-            </Link>
-
-            <Link
-              to="/student/change-password"
-              onClick={closeMenus}
-            >
-              Change Password
-            </Link>
-
-            <button
-              type="button"
-              className="nav-menu-logout"
-              onClick={() => {
-                closeMenus();
-                handleLogout();
-              }}
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-            >
-              <LogOut size={14} /> Logout
-            </button>
-          </div>
-        </div>
-      </>
-    ) : (
-      <div
-        className={`nav-dropdown ${
-          dropdownOpen ? "nav-dropdown-open" : ""
-        }`}
-      >
+        {/* Mobile hamburger button */}
         <button
           type="button"
-          className="nav-login"
-          aria-expanded={dropdownOpen}
-          onClick={() => setDropdownOpen((prev) => !prev)}
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          className="nav-hamburger"
+          aria-label="Toggle navigation"
+          aria-expanded={menuOpen}
+          aria-controls="main-navigation"
+          onClick={() => {
+            setMenuOpen((prev) => !prev);
+            setDropdownOpen(false);
+          }}
         >
-          <span>Login / Register</span>
-          <ChevronDown size={14} />
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-        <div className="nav-dropdown-menu">
-          <div
-            style={{
-              padding: "6px 12px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "#94a3b8",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
-            Users &amp; Renters
+        {/* Mobile backdrop overlay - tapping outside closes right drawer */}
+        <div
+          className={`nav-backdrop ${menuOpen ? "nav-backdrop-open" : ""}`}
+          onClick={closeMenus}
+          aria-hidden="true"
+        />
+
+        <div
+          id="main-navigation"
+          className={`nav-links ${menuOpen ? "nav-links-open" : ""}`}
+        >
+          {/* Mobile Drawer Header with Close Button */}
+          <div className="nav-drawer-header">
+            <div className="nav-drawer-brand">
+              <Building2 size={18} className="nav-logo-icon" />
+              <span>RoomRentFinder</span>
+            </div>
+            <button
+              type="button"
+              className="nav-drawer-close"
+              onClick={closeMenus}
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <Link to="/student/login" onClick={closeMenus}>
-            User Login
-          </Link>
 
-          <Link to="/student/register" onClick={closeMenus}>
-            User Register
-          </Link>
+          <div className="nav-drawer-body">
+            <Link to="/" className="nav-link-item" onClick={closeMenus}>
+              Home
+            </Link>
 
-          <div
-            style={{
-              borderTop: "1px solid #f1f5f9",
-              margin: "4px 0",
-              padding: "6px 12px 2px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "#94a3b8",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
-            Property Owners
+            {auth.owner ? (
+              <>
+                <div className="nav-drawer-section-title">Owner Portal</div>
+                <Link to="/owner/dashboard" className="nav-link-item" onClick={closeMenus}>
+                  Dashboard
+                </Link>
+
+                <Link to="/owner/enquiries" className="nav-link-item" onClick={closeMenus}>
+                  Enquiries
+                </Link>
+
+                <div
+                  className={`nav-dropdown ${
+                    dropdownOpen ? "nav-dropdown-open" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="nav-account"
+                    aria-expanded={dropdownOpen}
+                    onClick={() => setDropdownOpen((prev) => !prev)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <User size={15} />
+                    <span>Account</span>
+                    <ChevronDown size={14} className="nav-chevron" />
+                  </button>
+
+                  <div className="nav-dropdown-menu">
+                    <Link to="/owner/profile" onClick={closeMenus}>
+                      My Profile
+                    </Link>
+
+                    <Link to="/owner/change-password" onClick={closeMenus}>
+                      Change Password
+                    </Link>
+
+                    <button
+                      type="button"
+                      className="nav-menu-logout"
+                      onClick={() => {
+                        closeMenus();
+                        handleLogout();
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <LogOut size={14} /> Logout
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : auth.student ? (
+              <>
+                <div className="nav-drawer-section-title">Renter Portal</div>
+                <Link
+                  to="/favorites"
+                  className="nav-link-item"
+                  onClick={closeMenus}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Heart size={15} style={{ color: "#e11d48" }} />
+                  <span>Saved Rooms</span>
+                </Link>
+
+                <Link to="/student/dashboard" className="nav-link-item" onClick={closeMenus}>
+                  Dashboard
+                </Link>
+
+                <div
+                  className={`nav-dropdown ${
+                    dropdownOpen ? "nav-dropdown-open" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="nav-account"
+                    aria-expanded={dropdownOpen}
+                    onClick={() => setDropdownOpen((prev) => !prev)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <User size={15} />
+                    <span>Account</span>
+                    <ChevronDown size={14} className="nav-chevron" />
+                  </button>
+
+                  <div className="nav-dropdown-menu">
+                    <Link to="/student/profile" onClick={closeMenus}>
+                      My Profile
+                    </Link>
+
+                    <Link
+                      to="/student/change-password"
+                      onClick={closeMenus}
+                    >
+                      Change Password
+                    </Link>
+
+                    <button
+                      type="button"
+                      className="nav-menu-logout"
+                      onClick={() => {
+                        closeMenus();
+                        handleLogout();
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <LogOut size={14} /> Logout
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div
+                className={`nav-dropdown ${
+                  dropdownOpen ? "nav-dropdown-open" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  className="nav-login"
+                  aria-expanded={dropdownOpen}
+                  onClick={() => setDropdownOpen((prev) => !prev)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <span>Login / Register</span>
+                  <ChevronDown size={14} className="nav-chevron" />
+                </button>
+
+                <div className="nav-dropdown-menu">
+                  <div className="nav-dropdown-category">
+                    Users &amp; Renters
+                  </div>
+                  <Link to="/student/login" onClick={closeMenus}>
+                    User Login
+                  </Link>
+
+                  <Link to="/student/register" onClick={closeMenus}>
+                    User Register
+                  </Link>
+
+                  <div className="nav-dropdown-category nav-category-divider">
+                    Property Owners
+                  </div>
+                  <Link to="/login" onClick={closeMenus}>
+                    Owner Login
+                  </Link>
+
+                  <Link to="/register" onClick={closeMenus}>
+                    Owner Register
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
-          <Link to="/login" onClick={closeMenus}>
-            Owner Login
-          </Link>
-
-          <Link to="/register" onClick={closeMenus}>
-            Owner Register
-          </Link>
         </div>
-      </div>
-    )}
-  </div>
-</nav>
+      </nav>
 
       <Routes>
         <Route path="/" element={<Home />} />
