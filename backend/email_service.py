@@ -1,5 +1,8 @@
 import os
+import json
 import smtplib
+import urllib.request
+import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
@@ -8,79 +11,142 @@ from dotenv import load_dotenv
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
-SMTP_SERVER = os.getenv("SMTP_SERVER", "").strip()
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
-SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME or "no-reply@roomrentfinder.com").strip()
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+def _send_via_brevo_api(api_key: str, from_email: str, to_email: str, subject: str, html_body: str) -> bool:
+    """Sends email via Brevo REST API over HTTPS (Port 443) - Bypasses cloud SMTP blocks."""
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": api_key,
+        "content-type": "application/json",
+        "accept": "application/json"
+    }
+    payload = {
+        "sender": {"name": "RoomRentFinder", "email": from_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_body
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=12) as response:
+            if response.status in (200, 201):
+                print(f"[EMAIL SERVICE SUCCESS - BREVO API] Sent email to {to_email}")
+                return True
+        return False
+    except Exception as e:
+        print(f"[EMAIL SERVICE ERROR - BREVO API] {e}")
+        return False
+
+
+def _send_via_resend_api(api_key: str, from_email: str, to_email: str, subject: str, html_body: str) -> bool:
+    """Sends email via Resend REST API over HTTPS (Port 443) - Bypasses cloud SMTP blocks."""
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": from_email if "@" in from_email else "RoomRentFinder <onboarding@resend.dev>",
+        "to": [to_email],
+        "subject": subject,
+        "html": html_body
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=12) as response:
+            if response.status in (200, 201):
+                print(f"[EMAIL SERVICE SUCCESS - RESEND API] Sent email to {to_email}")
+                return True
+        return False
+    except Exception as e:
+        print(f"[EMAIL SERVICE ERROR - RESEND API] {e}")
+        return False
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
     """
-    Sends an email using configured SMTP credentials.
-    Supports both STARTTLS (port 587) and SSL (port 465) with automatic fallback.
-    If SMTP credentials are not configured, logs the email and link to the server console.
+    Sends an email using configured HTTPS APIs (Brevo / Resend) or standard SMTP.
+    Cloud providers (Render/Railway free tier) block outbound SMTP ports (587/465).
+    HTTPS APIs use port 443 which is never blocked.
     """
-    clean_password = SMTP_PASSWORD.replace(" ", "").strip()
+    # Dynamic env reload
+    brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    smtp_server = os.getenv("SMTP_SERVER", "").strip()
+    raw_port = os.getenv("SMTP_PORT", "587").strip()
+    smtp_port = int(raw_port) if raw_port.isdigit() else 587
+    smtp_username = os.getenv("SMTP_USERNAME", "").strip()
+    smtp_password = os.getenv("SMTP_PASSWORD", "").replace(" ", "").strip()
+    smtp_from_email = os.getenv("SMTP_FROM_EMAIL", smtp_username or "no-reply@roomrentfinder.com").strip()
 
-    if not SMTP_SERVER or not SMTP_USERNAME or not clean_password:
-        print("\n" + "=" * 60)
-        print(" [EMAIL SERVICE (DEV MODE)] No SMTP credentials configured!")
-        print(f" To: {to_email}")
-        print(f" Subject: {subject}")
-        print("-" * 60)
-        for line in html_body.splitlines():
-            if "href=" in line or "http" in line:
-                print(f" Link: {line.strip()}")
-        print("=" * 60 + "\n")
-        return True
+    # Priority 1: Brevo HTTPS API (Port 443 - 300 free emails/day to any inbox)
+    if brevo_api_key:
+        from_addr = smtp_username if smtp_username else "jillasanjay16@gmail.com"
+        if _send_via_brevo_api(brevo_api_key, from_addr, to_email, subject, html_body):
+            return True
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = SMTP_FROM_EMAIL
-    msg["To"] = to_email
-    html_part = MIMEText(html_body, "html")
-    msg.attach(html_part)
+    # Priority 2: Resend HTTPS API (Port 443 - Generous free tier)
+    if resend_api_key:
+        if _send_via_resend_api(resend_api_key, smtp_from_email, to_email, subject, html_body):
+            return True
 
-    # Attempt 1: Configured port (default 587 TLS or 465 SSL)
-    try:
-        if SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=12) as server:
-                server.login(SMTP_USERNAME, clean_password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=12) as server:
-                server.starttls()
-                server.login(SMTP_USERNAME, clean_password)
-                server.send_message(msg)
-        print(f"[EMAIL SERVICE SUCCESS] Sent email to {to_email}")
-        return True
-    except Exception as first_err:
-        print(f"[EMAIL SERVICE WARNING] Primary send failed ({SMTP_SERVER}:{SMTP_PORT}): {first_err}")
+    # Priority 3: SMTP (Works locally or on non-restricted hosting)
+    if smtp_server and smtp_username and smtp_password:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from_email
+        msg["To"] = to_email
+        html_part = MIMEText(html_body, "html")
+        msg.attach(html_part)
 
-        # Attempt 2: Fallback (if 587 failed, try 465 SSL, or vice versa)
-        fallback_port = 465 if SMTP_PORT != 465 else 587
         try:
-            print(f"[EMAIL SERVICE INFO] Trying fallback on port {fallback_port}...")
-            if fallback_port == 465:
-                with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=12) as server:
-                    server.login(SMTP_USERNAME, clean_password)
+            if smtp_port == 465:
+                with smtplib.SMTP_SSL(smtp_server, 465, timeout=8) as server:
+                    server.login(smtp_username, smtp_password)
                     server.send_message(msg)
             else:
-                with smtplib.SMTP(SMTP_SERVER, 587, timeout=12) as server:
+                with smtplib.SMTP(smtp_server, smtp_port, timeout=8) as server:
                     server.starttls()
-                    server.login(SMTP_USERNAME, clean_password)
+                    server.login(smtp_username, smtp_password)
                     server.send_message(msg)
-            print(f"[EMAIL SERVICE SUCCESS] Sent email to {to_email} via fallback port {fallback_port}")
+            print(f"[EMAIL SERVICE SUCCESS - SMTP] Sent email to {to_email}")
             return True
-        except Exception as second_err:
-            print(f"[EMAIL SERVICE ERROR] All attempts failed to send to {to_email}: {second_err}")
-            return False
+        except Exception as first_err:
+            print(f"[EMAIL SERVICE WARNING] SMTP port {smtp_port} failed: {first_err}")
+
+            # Fallback port
+            fallback_port = 465 if smtp_port != 465 else 587
+            try:
+                if fallback_port == 465:
+                    with smtplib.SMTP_SSL(smtp_server, 465, timeout=8) as server:
+                        server.login(smtp_username, smtp_password)
+                        server.send_message(msg)
+                else:
+                    with smtplib.SMTP(smtp_server, 587, timeout=8) as server:
+                        server.starttls()
+                        server.login(smtp_username, smtp_password)
+                        server.send_message(msg)
+                print(f"[EMAIL SERVICE SUCCESS - SMTP FALLBACK] Sent email to {to_email} via port {fallback_port}")
+                return True
+            except Exception as second_err:
+                print(f"[EMAIL SERVICE BLOCKED] Standard SMTP failed ({second_err}). Cloud firewalls (Render/Railway free tier) block ports 587/465. Use BREVO_API_KEY or RESEND_API_KEY over HTTPS port 443.")
+
+    # Always log the link to stdout so administrators/developers can retrieve it from Render logs
+    print("\n" + "=" * 60)
+    print(" [ACTION LINK (RENDER SERVER LOGS)]")
+    print(f" To: {to_email}")
+    print(f" Subject: {subject}")
+    print("-" * 60)
+    for line in html_body.splitlines():
+        if "href=" in line or "http" in line:
+            print(f" Link: {line.strip()}")
+    print("=" * 60 + "\n")
+    return False
 
 
 def send_password_reset_email(to_email: str, name: str, reset_token: str) -> bool:
-    reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    reset_url = f"{frontend_url}/reset-password?token={reset_token}"
     subject = "Reset Your RoomRentFinder Password"
     body = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -100,7 +166,8 @@ def send_password_reset_email(to_email: str, name: str, reset_token: str) -> boo
 
 
 def send_verification_email(to_email: str, name: str, verification_token: str) -> bool:
-    verify_url = f"{FRONTEND_URL}/verify-email?token={verification_token}"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    verify_url = f"{frontend_url}/verify-email?token={verification_token}"
     subject = "Verify Your RoomRentFinder Account"
     body = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
