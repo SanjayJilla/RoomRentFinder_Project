@@ -40,6 +40,7 @@ from slowapi.middleware import SlowAPIMiddleware
 import cloudinary
 import cloudinary.uploader
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import IntegrityError
 import os
 import jwt
@@ -83,6 +84,7 @@ def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
     )
 
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -91,16 +93,32 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 allowed_origins = [
     "http://localhost:5173",
     "http://localhost:4173",
+    "http://localhost:3000",
+    "https://roomrentfinder.me",
+    "http://roomrentfinder.me",
+    "https://www.roomrentfinder.me",
+    "http://www.roomrentfinder.me",
     "https://room-rent-finder-one.vercel.app",
 ]
 frontend_env = os.getenv("FRONTEND_URL")
-if frontend_env and frontend_env.rstrip("/") not in allowed_origins:
-    allowed_origins.append(frontend_env.rstrip("/"))
+if frontend_env:
+    cleaned = frontend_env.rstrip("/")
+    if cleaned not in allowed_origins:
+        allowed_origins.append(cleaned)
+    # Also allow http/https variants
+    if cleaned.startswith("https://"):
+        http_variant = cleaned.replace("https://", "http://")
+        if http_variant not in allowed_origins:
+            allowed_origins.append(http_variant)
+    elif cleaned.startswith("http://"):
+        https_variant = cleaned.replace("http://", "https://")
+        if https_variant not in allowed_origins:
+            allowed_origins.append(https_variant)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https?://(.*\.)?(vercel\.app|roomrentfinder\.me|is-a\.dev)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -166,6 +184,11 @@ class EnquiryCreate(BaseModel):
 @app.get("/")
 def home():
     return {"message": "Rental Room Finder API running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "RoomRentFinder API"}
 
 bearer_scheme = HTTPBearer()
 

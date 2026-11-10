@@ -21,7 +21,7 @@ import { isDemoRoom, getCleanTitle } from "../utils/demoHelper";
 import "../App.css";
 import "./Home.css"; // UI CHANGE: page-specific styling without changing other pages
 
-const API_URL = `${import.meta.env.VITE_API_URL}`;
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 const initialFilters = {
   location: "",
   max_rent: "",
@@ -74,6 +74,14 @@ function Home() {
           params.lat = userCoords.lat;
           params.lng = userCoords.lng;
           params.radius_km = radiusKm;
+        }
+
+        if (!API_URL) {
+          if (!controller.signal.aborted) {
+            setRooms([]);
+            setLoading(false);
+          }
+          return;
         }
 
         const response = await axios.get(`${API_URL}/rooms`, {

@@ -485,6 +485,8 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
             </ProtectedRoute>
           }
         />
+        {/* Catch-all route: gracefully redirects any unknown or 404 path back to the home page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
