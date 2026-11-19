@@ -7,7 +7,6 @@ import {
   User,
   Heart,
   LogOut,
-  GraduationCap,
 } from "lucide-react";
 import Home from "./pages/Home";
 import Login from "./pages/login";
@@ -114,7 +113,11 @@ const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Close menus on route navigation
   useEffect(() => {
-    closeMenus();
+    const timer = setTimeout(() => {
+      setMenuOpen(false);
+      setDropdownOpen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   return (

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { Lock, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Lock, CheckCircle2 } from "lucide-react";
 import { validatePassword } from "../utils/validation";
 
 function ResetPassword() {

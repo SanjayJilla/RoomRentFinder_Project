@@ -56,11 +56,17 @@ function RoomMap({ rooms = [], userCoords = null, onViewDetails = null }) {
     mapInstanceRef.current = map;
     markersGroupRef.current = markersGroup;
 
+    // Invalidate map size after mount to prevent grey tiles
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
     return () => {
       map.remove();
       mapInstanceRef.current = null;
       markersGroupRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafletReady]);
 
   // Invalidate map size when toggling expanded view
@@ -253,7 +259,7 @@ function RoomMap({ rooms = [], userCoords = null, onViewDetails = null }) {
         </div>
 
         <div className="room-map-controls">
-          {boundsRef.current.length > 0 && (
+          {mappedCount > 0 && (
             <button
               type="button"
               className="room-map-tool-btn"

@@ -6,8 +6,6 @@ import {
   MapPin,
   ArrowRight,
   Image as ImageIcon,
-  Building2,
-  Trash2,
   Sparkles,
 } from "lucide-react";
 import { isDemoRoom, getCleanTitle } from "../utils/demoHelper";

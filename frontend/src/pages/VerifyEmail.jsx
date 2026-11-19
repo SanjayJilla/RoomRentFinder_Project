@@ -8,14 +8,14 @@ function VerifyEmail() {
   const token = searchParams.get("token") || "";
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(token));
   const [success, setSuccess] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(
+    token ? "" : "Invalid or missing verification link."
+  );
 
   useEffect(() => {
     if (!token) {
-      setLoading(false);
-      setMessage("Invalid or missing verification link.");
       return;
     }
 

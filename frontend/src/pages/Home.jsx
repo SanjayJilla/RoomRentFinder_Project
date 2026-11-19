@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getFavorites, addFavorite, removeFavorite } from "../services/favoritesApi";
 import RoomMap from "../components/RoomMap";
 import LoginPromptModal from "../components/LoginPromptModal";
@@ -33,7 +33,6 @@ const initialFilters = {
 
 function Home() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

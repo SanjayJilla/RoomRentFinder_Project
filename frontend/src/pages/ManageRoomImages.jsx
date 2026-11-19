@@ -10,7 +10,6 @@ import {
   AlertCircle,
   Loader2,
   Plus,
-  Eye,
   X,
 } from "lucide-react";
 

@@ -15,6 +15,7 @@ import {
   Wifi,
   Bath,
   Utensils,
+  Sparkles,
 } from "lucide-react";
 import { getCleanTitle } from "../utils/demoHelper";
 
@@ -118,7 +119,6 @@ function EditRoom() {
   // Geocoding Autocomplete
   useEffect(() => {
     if (!form.location || form.location.trim().length < 3 || hasSelectedLocation) {
-      setLocationSuggestions([]);
       return;
     }
 
@@ -159,6 +159,9 @@ function EditRoom() {
 
   const handleLocationInputChange = (e) => {
     const value = e.target.value;
+    if (value.trim().length < 3) {
+      setLocationSuggestions([]);
+    }
     setForm((previous) => ({
       ...previous,
       location: value,

@@ -7,7 +7,6 @@ import {
   MapPin,
   Check,
   X,
-  ArrowLeft,
   Loader2,
   Building2,
   FileText,
@@ -16,6 +15,7 @@ import {
   Wifi,
   Bath,
   Utensils,
+  Sparkles,
 } from "lucide-react";
 
 function AddRoom() {
@@ -50,7 +50,6 @@ function AddRoom() {
 
   useEffect(() => {
     if (!form.location || form.location.trim().length < 3 || hasSelectedLocation) {
-      setLocationSuggestions([]);
       return;
     }
 
@@ -91,6 +90,9 @@ function AddRoom() {
 
   const handleLocationInputChange = (e) => {
     const value = e.target.value;
+    if (value.trim().length < 3) {
+      setLocationSuggestions([]);
+    }
     setForm((previous) => ({
       ...previous,
       location: value,
