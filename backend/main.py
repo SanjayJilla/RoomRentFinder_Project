@@ -83,6 +83,22 @@ def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "Too many requests. Please slow down and try again later."}
     )
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"[UNHANDLED EXCEPTION] {request.method} {request.url.path}: {exc}")
+    import traceback
+    traceback.print_exc()
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred. Please try again later."},
+        headers=headers
+    )
+
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -1321,19 +1337,34 @@ async def upload_room_image(
             detail="Image must be smaller than 5 MB"
         )
 
-    from io import BytesIO
-    from PIL import Image, UnidentifiedImageError
+    # Validate image signature (magic bytes) - pure Python without external dependencies
+    is_valid = False
+    if len(contents) >= 12:
+        if contents.startswith(b"\xff\xd8\xff"):
+            is_valid = True  # JPEG
+        elif contents.startswith(b"\x89PNG\r\n\x1a\n"):
+            is_valid = True  # PNG
+        elif contents.startswith(b"RIFF") and contents[8:12] == b"WEBP":
+            is_valid = True  # WEBP
 
-    try:
-        with Image.open(BytesIO(contents)) as img:
-            img.verify()
-        with Image.open(BytesIO(contents)) as img:
-            if img.format not in {"JPEG", "PNG", "WEBP"}:
-                raise ValueError("Unsupported image format")
-    except (UnidentifiedImageError, ValueError, OSError):
+    if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail="Invalid image file. Only JPG, PNG and WEBP images are allowed(Max 5 MB)"
+            detail="Invalid image file. Only JPG, PNG and WEBP images are allowed (Max 5 MB)"
+        )
+
+    # Optional Pillow integrity check (only if Pillow is installed; no crash if not)
+    try:
+        from io import BytesIO
+        from PIL import Image
+        with Image.open(BytesIO(contents)) as img:
+            img.verify()
+    except ImportError:
+        pass  # Pillow not installed; magic header and Cloudinary upload verification are sufficient
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Corrupted or invalid image file."
         )
 
     try:
@@ -1346,10 +1377,11 @@ async def upload_room_image(
         image_url = upload_result["secure_url"]
         public_id = upload_result["public_id"]
 
-    except Exception:
+    except Exception as upload_err:
+        print(f"[CLOUDINARY UPLOAD ERROR]: {upload_err}")
         raise HTTPException(
             status_code=502,
-            detail="Image upload failed. Please try again."
+            detail=f"Image upload failed: {str(upload_err)}"
         )
 
     new_image = RoomImage(
