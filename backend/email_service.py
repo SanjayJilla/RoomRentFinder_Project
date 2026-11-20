@@ -33,6 +33,14 @@ def _send_via_brevo_api(api_key: str, from_email: str, to_email: str, subject: s
                 print(f"[EMAIL SERVICE SUCCESS - BREVO API] Sent email to {to_email}")
                 return True
         return False
+    except urllib.error.HTTPError as e:
+        error_body = ""
+        try:
+            error_body = e.read().decode("utf-8")
+        except Exception:
+            pass
+        print(f"[EMAIL SERVICE ERROR - BREVO API] HTTP {e.code}: {e.reason} - {error_body}")
+        return False
     except Exception as e:
         print(f"[EMAIL SERVICE ERROR - BREVO API] {e}")
         return False
@@ -81,9 +89,12 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
 
     # Priority 1: Brevo HTTPS API (Port 443 - 300 free emails/day to any inbox)
     if brevo_api_key:
-        from_addr = smtp_username if smtp_username else "jillasanjay16@gmail.com"
+        from_addr = os.getenv("BREVO_SENDER_EMAIL", "").strip() or smtp_from_email or smtp_username or "jillasanjay16@gmail.com"
+        print(f"[EMAIL SERVICE] Attempting Brevo delivery from '{from_addr}' to '{to_email}'...")
         if _send_via_brevo_api(brevo_api_key, from_addr, to_email, subject, html_body):
             return True
+    else:
+        print("[EMAIL SERVICE] BREVO_API_KEY is not configured or empty on this server.")
 
     # Priority 2: Resend HTTPS API (Port 443 - Generous free tier)
     if resend_api_key:
