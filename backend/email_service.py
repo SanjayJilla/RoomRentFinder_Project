@@ -20,8 +20,16 @@ def _send_via_brevo_api(api_key: str, from_email: str, to_email: str, subject: s
         "content-type": "application/json",
         "accept": "application/json"
     }
+
+    # Extract clean email address if formatted as 'Display Name <email@example.com>'
+    clean_sender_email = from_email.strip()
+    sender_name = "RoomRentFinder"
+    if "<" in clean_sender_email and ">" in clean_sender_email:
+        sender_name = clean_sender_email.split("<")[0].strip() or "RoomRentFinder"
+        clean_sender_email = clean_sender_email.split("<")[1].split(">")[0].strip()
+
     payload = {
-        "sender": {"name": "RoomRentFinder", "email": from_email},
+        "sender": {"name": sender_name, "email": clean_sender_email},
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_body
@@ -90,8 +98,9 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
     # Priority 1: Brevo HTTPS API (Port 443 - 300 free emails/day to any inbox)
     if brevo_api_key:
         from_addr = os.getenv("BREVO_SENDER_EMAIL", "").strip() or smtp_from_email or smtp_username or "jillasanjay16@gmail.com"
-        print(f"[EMAIL SERVICE] Attempting Brevo delivery from '{from_addr}' to '{to_email}'...")
-        if _send_via_brevo_api(brevo_api_key, from_addr, to_email, subject, html_body):
+        clean_from_addr = from_addr.split("<")[1].split(">")[0].strip() if ("<" in from_addr and ">" in from_addr) else from_addr.strip()
+        print(f"[EMAIL SERVICE] Attempting Brevo delivery from '{clean_from_addr}' to '{to_email}'...")
+        if _send_via_brevo_api(brevo_api_key, clean_from_addr, to_email, subject, html_body):
             return True
     else:
         print("[EMAIL SERVICE] BREVO_API_KEY is not configured or empty on this server.")
