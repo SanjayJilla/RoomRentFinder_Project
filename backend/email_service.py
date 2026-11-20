@@ -144,8 +144,11 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
     return False
 
 
-def send_password_reset_email(to_email: str, name: str, reset_token: str) -> bool:
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+def send_password_reset_email(to_email: str, name: str, reset_token: str, frontend_url: str | None = None) -> bool:
+    if not frontend_url:
+        frontend_url = os.getenv("FRONTEND_URL", "https://roomrentfinder.me").rstrip("/")
+    else:
+        frontend_url = frontend_url.rstrip("/")
     reset_url = f"{frontend_url}/reset-password?token={reset_token}"
     subject = "Reset Your RoomRentFinder Password"
     body = f"""
@@ -165,8 +168,11 @@ def send_password_reset_email(to_email: str, name: str, reset_token: str) -> boo
     return send_email(to_email, subject, body)
 
 
-def send_verification_email(to_email: str, name: str, verification_token: str) -> bool:
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+def send_verification_email(to_email: str, name: str, verification_token: str, frontend_url: str | None = None) -> bool:
+    if not frontend_url:
+        frontend_url = os.getenv("FRONTEND_URL", "https://roomrentfinder.me").rstrip("/")
+    else:
+        frontend_url = frontend_url.rstrip("/")
     verify_url = f"{frontend_url}/verify-email?token={verification_token}"
     subject = "Verify Your RoomRentFinder Account"
     body = f"""

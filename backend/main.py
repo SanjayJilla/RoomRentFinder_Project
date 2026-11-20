@@ -581,7 +581,7 @@ def register_owner(
             purpose="email_verification",
             expires_minutes=1440
         )
-        send_verification_email(new_owner.email, new_owner.name, verify_token)
+        send_verification_email(new_owner.email, new_owner.name, verify_token, frontend_url=request.headers.get("origin"))
     except Exception:
         pass
 
@@ -626,7 +626,7 @@ def register_student(
             purpose="email_verification",
             expires_minutes=1440
         )
-        send_verification_email(student.email, student.name, verify_token)
+        send_verification_email(student.email, student.name, verify_token, frontend_url=request.headers.get("origin"))
     except Exception:
         pass
 
@@ -787,7 +787,12 @@ def forgot_password(
             purpose="password_reset",
             expires_minutes=15
         )
-        sent = send_password_reset_email(to_email=user.email, name=user.name, reset_token=reset_token)
+        sent = send_password_reset_email(
+            to_email=user.email,
+            name=user.name,
+            reset_token=reset_token,
+            frontend_url=request.headers.get("origin")
+        )
         if not sent:
             print(f"[AUTH ERROR] Failed to deliver reset email to {user.email}")
     else:
